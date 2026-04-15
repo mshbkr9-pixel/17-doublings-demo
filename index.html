@@ -579,7 +579,7 @@ function logH(m,col='#8494b2'){const d=$('loopHistory'),l=document.createElement
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
 
 function copyShareText(){
-  const tv=activeCap+sidePotTotal;
+  const tv=activeCap+available+loopSidePot;
   const t=[`17 \u05d4\u05db\u05e4\u05dc\u05d5\u05ea \u2014 \u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d4 \u05d4\u05d5\u05e9\u05dc\u05de\u05d4!`,``,`$5 \u05d4\u05e4\u05db\u05d5 \u05dc-${fmt(tv)}`,``,`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)}`,`\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotTotal)}`,`\u05dc\u05d5\u05e4\u05d9\u05dd: ${loopNum.toLocaleString()} | \u05e2\u05e1\u05e7\u05d0\u05d5\u05ea: ${totalTrades.toLocaleString()}`,`\u05e9\u05d9\u05d0 \u05e8\u05e6\u05e3: ${bestStreak}`,``,`\u05d4\u05d2\u05d3\u05e8\u05d5\u05ea:`,`\u05d4\u05e6\u05dc\u05d7\u05d4: ${(runnerRate*100).toFixed(0)}% | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${(reservePct*100).toFixed(0)}%`,`\u05de\u05db\u05e4\u05d9\u05dc: \u00d7${multiplier.toFixed(2)} | \u05ea\u05e7\u05e6\u05d9\u05d1: ${fmt(initialBudget)}`].join('\n');
   navigator.clipboard.writeText(t).then(()=>toast('\u05d4\u05d5\u05e2\u05ea\u05e7!')).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);toast('\u05d4\u05d5\u05e2\u05ea\u05e7!')});
 }
@@ -602,10 +602,10 @@ function trade(){
     flash(streak,'done');updSteps();updStats();
     if(streak>=TARGET){
       running=false;clearTimeout(timerId);
-      const tv=activeCap+sidePotTotal;
+      const tv=activeCap+available+loopSidePot;
       logH(`\u05dc\u05d5\u05e4 #${loopNum}: \u05d4\u05d5\u05e9\u05dc\u05dd! 17/17 | ${fmt(tv)}`,'#ffc107');
       log(`\u05dc\u05d5\u05e4 #${loopNum} \u05d4\u05d5\u05e9\u05dc\u05dd! 17 \u05e0\u05d9\u05e6\u05d7\u05d5\u05e0\u05d5\u05ea \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd!`,'gold');
-      log(`\u05d4\u05d5\u05df: ${fmt(activeCap)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotTotal)} | \u05e1\u05d4"\u05db: ${fmt(tv)}`,'gold');
+      log(`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)} | \u05e7"\u05e6 \u05dc\u05d5\u05e4 \u05de\u05e0\u05e6\u05d7: ${fmt(loopSidePot)} | \u05d6\u05de\u05d9\u05df: ${fmt(available)} | \u05e1\u05d4"\u05db: ${fmt(tv)}`,'gold');
       showDone(tv);$('btnStart').style.display='';$('btnStop').style.display='none';return;
     }
     timerId=setTimeout(trade,speed);
@@ -634,7 +634,7 @@ function stopSim(){running=false;clearTimeout(timerId);log('--- \u05e0\u05e2\u05
 
 function showDone(tv){
   $('finalValue').textContent=fmt(tv);
-  $('finalDetail').innerHTML=`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)}<br>\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotTotal)}<br>\u05dc\u05d5\u05e4\u05d9\u05dd: ${loopNum.toLocaleString()} | \u05e2\u05e1\u05e7\u05d0\u05d5\u05ea: ${totalTrades.toLocaleString()}<br>\u05e9\u05d9\u05d0 \u05e8\u05e6\u05e3: ${bestStreak}<br>\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${(reservePct*100).toFixed(0)}% | \u05de\u05db\u05e4\u05d9\u05dc: \u00d7${multiplier.toFixed(2)}`;
+  $('finalDetail').innerHTML=`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc (\u05dc\u05d5\u05e4 \u05de\u05e0\u05e6\u05d7): ${fmt(activeCap)}<br>\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3 \u05de\u05dc\u05d5\u05e4 \u05de\u05e0\u05e6\u05d7: ${fmt(loopSidePot)}<br>\u05db\u05e1\u05e3 \u05e0\u05d5\u05ea\u05e8 \u05de\u05dc\u05d5\u05e4\u05d9\u05dd \u05e7\u05d5\u05d3\u05de\u05d9\u05dd: ${fmt(available)}<br>\u05dc\u05d5\u05e4\u05d9\u05dd: ${loopNum.toLocaleString()} | \u05e2\u05e1\u05e7\u05d0\u05d5\u05ea: ${totalTrades.toLocaleString()}<br>\u05e9\u05d9\u05d0 \u05e8\u05e6\u05e3: ${bestStreak}<br>\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${(reservePct*100).toFixed(0)}% | \u05de\u05db\u05e4\u05d9\u05dc: \u00d7${multiplier.toFixed(2)}`;
   $('overlay').classList.add('show');
 }
 function closeOverlay(){$('overlay').classList.remove('show')}
