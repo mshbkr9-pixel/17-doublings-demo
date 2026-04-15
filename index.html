@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>17 הכפלות — סימולציית לופ חי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════ shadcn Design Tokens (Dark) ═══════════ */
+:root {
+  --bg:          #09090b;
+  --card:        #0a0a0c;
+  --card-hover:  #111114;
+  --popover:     #0a0a0c;
+  --border:      #27272a;
+  --input:       #27272a;
+  --ring:        #d4d4d8;
+  --radius:      0.625rem;
+
+  --fg:          #fafafa;
+  --fg-muted:    #a1a1aa;
+  --fg-dim:      #71717a;
+
+  --primary:     #fafafa;
+  --primary-fg:  #18181b;
+  --secondary:   #27272a;
+  --secondary-fg:#fafafa;
+  --accent:      #27272a;
+  --accent-fg:   #fafafa;
+  --destructive: #ef4444;
+  --success:     #22c55e;
+  --success-dim: #166534;
+  --warning:     #eab308;
+  --warning-dim: #854d0e;
+  --info:        #3b82f6;
+
+  --shadow-sm:  0 1px 2px 0 rgba(0,0,0,.3);
+  --shadow-md:  0 4px 6px -1px rgba(0,0,0,.3);
+  --shadow-lg:  0 10px 15px -3px rgba(0,0,0,.3);
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+}
+
+/* ═══════════ Reset & Base ═══════════ */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════ Layout ═══════════ */
+.page { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+
+.page-header { margin-bottom: 24px; }
+.page-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+.page-desc { color: var(--fg-muted); font-size: 0.875rem; margin-top: 4px; }
+
+.grid-main {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+/* ═══════════ Card ═══════════ */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.card-header {
+  padding: 16px 20px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+.card-body { padding: 16px 20px; }
+.card-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* ═══════════ Badge ═══════════ */
+.badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px; padding: 2px 8px;
+  font-size: 0.75rem; font-weight: 500; white-space: nowrap;
+}
+.badge-outline { border: 1px solid var(--border); color: var(--fg-muted); }
+.badge-success { background: var(--success-dim); color: var(--success); }
+.badge-warning { background: var(--warning-dim); color: var(--warning); }
+.badge-destructive { background: rgba(239,68,68,.15); color: var(--destructive); }
+
+/* ═══════════ Stat Grid ═══════════ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.stat-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--fg-muted);
+  margin-bottom: 4px;
+}
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: var(--mono);
+  letter-spacing: -0.025em;
+}
+
+/* ═══════════ Steps Bar ═══════════ */
+.steps-row { display: flex; gap: 3px; margin: 12px 0; direction: ltr; }
+.step {
+  flex: 1; height: 32px;
+  border-radius: 6px;
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 600; font-family: var(--mono);
+  color: var(--fg-dim);
+  transition: all .25s ease;
+}
+.step.done { background: var(--success-dim); border-color: var(--success); color: var(--success); }
+.step.now  { background: var(--warning-dim); border-color: var(--warning); color: var(--warning); animation: blink 1.2s ease-in-out infinite; }
+.step.fail { background: rgba(239,68,68,.15); border-color: var(--destructive); color: var(--destructive); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ═══════════ Mini Stats (inside card) ═══════════ */
+.mini-stats { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+.mini-stat {
+  text-align: center;
+  background: var(--secondary);
+  border-radius: 6px;
+  padding: 10px 4px;
+}
+.mini-stat .ms-label { font-size: 0.65rem; color: var(--fg-dim); text-transform: uppercase; letter-spacing: .04em; }
+.mini-stat .ms-val { font-size: 1.1rem; font-weight: 700; font-family: var(--mono); margin-top: 2px; }
+
+/* ═══════════ Log ═══════════ */
+.log-scroll {
+  max-height: 280px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  direction: ltr; text-align: left;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.log-scroll::-webkit-scrollbar { width: 6px; }
+.log-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.log-line { padding: 4px 8px; border-radius: 4px; margin-bottom: 2px; }
+.log-line.win  { background: rgba(34,197,94,.08); color: var(--success); }
+.log-line.loss { background: rgba(239,68,68,.08); color: var(--destructive); }
+.log-line.info { background: rgba(59,130,246,.06); color: var(--info); }
+.log-line.gold { background: rgba(234,179,8,.1); color: var(--warning); }
+
+/* ═══════════ History ═══════════ */
+.hist-scroll {
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  direction: ltr; text-align: left;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.hist-scroll::-webkit-scrollbar { width: 6px; }
+.hist-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.hist-line { padding: 3px 8px; border-radius: 3px; margin-bottom: 1px; }
+
+/* ═══════════ Buttons ═══════════ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius);
+  font-size: 0.875rem; font-weight: 500; font-family: var(--font);
+  border: none; cursor: pointer;
+  transition: background .15s, opacity .15s;
+  height: 40px; padding: 0 20px;
+}
+.btn-primary { background: var(--primary); color: var(--primary-fg); }
+.btn-primary:hover { opacity: .9; }
+.btn-destructive { background: var(--destructive); color: #fff; }
+.btn-destructive:hover { opacity: .9; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--fg); }
+.btn-outline:hover { background: var(--accent); }
+.btn-full { width: 100%; }
+.btn-lg { height: 48px; font-size: 1rem; font-weight: 600; }
+
+/* ═══════════ Slider ═══════════ */
+.field { margin-bottom: 12px; }
+.field-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 0.8rem; color: var(--fg-muted); margin-bottom: 6px;
+}
+.field-val { color: var(--warning); font-weight: 700; font-family: var(--mono); }
+input[type=range] {
+  -webkit-appearance: none; width: 100%; height: 6px;
+  background: var(--secondary); border-radius: 3px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--fg); cursor: pointer;
+  border: 2px solid var(--bg);
+}
+
+/* ═══════════ Param Row ═══════════ */
+.param { display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; font-size: 0.825rem; border-bottom: 1px solid var(--border); }
+.param:last-of-type { border-bottom: none; }
+.param-label { color: var(--fg-muted); }
+.param-val { font-family: var(--mono); font-weight: 600; }
+
+/* ═══════════ Multiplier Info ═══════════ */
+.mult-info {
+  text-align: center; padding: 8px;
+  background: var(--secondary); border-radius: 6px;
+  font-size: 0.78rem; color: var(--fg-muted);
+  margin-bottom: 12px;
+}
+.mult-info .hi { color: var(--warning); font-weight: 700; font-family: var(--mono); }
+
+/* ═══════════ Explain ═══════════ */
+.explain {
+  padding: 12px 16px; margin-top: 12px;
+  background: var(--secondary); border-radius: var(--radius);
+  font-size: 0.8rem; color: var(--fg-muted); line-height: 1.7;
+  border-right: 3px solid var(--info);
+}
+.explain b { color: var(--fg); font-weight: 600; }
+
+/* ═══════════ Tip (hover/tap) ═══════════ */
+.tip { position: relative; cursor: help; border-bottom: 1px dotted var(--fg-dim); }
+.tip .tt {
+  visibility: hidden; opacity: 0;
+  position: absolute; z-index: 50;
+  background: var(--popover); color: var(--fg);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; font-size: 0.78rem; width: 250px; line-height: 1.5;
+  bottom: 130%; right: 0;
+  box-shadow: var(--shadow-lg);
+  transition: opacity .2s; pointer-events: none; font-weight: 400;
+}
+.tip:hover .tt, .tip.tapped .tt { visibility: visible; opacity: 1; }
+
+/* ═══════════ Overlay ═══════════ */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.8); backdrop-filter: blur(4px);
+  z-index: 100; align-items: center; justify-content: center;
+}
+.overlay.show { display: flex; }
+.overlay-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 32px; text-align: center;
+  max-width: 460px; width: calc(100% - 32px);
+  box-shadow: var(--shadow-lg);
+}
+.overlay-card h2 { font-size: 1.5rem; font-weight: 700; color: var(--warning); margin-bottom: 8px; }
+.overlay-card .big-num { font-size: 2.5rem; font-weight: 800; font-family: var(--mono); color: var(--success); }
+.overlay-card .detail { color: var(--fg-muted); margin-top: 12px; font-size: 0.875rem; line-height: 1.8; }
+.overlay-btns { display: flex; gap: 8px; margin-top: 20px; justify-content: center; }
+
+/* ═══════════ Toast ═══════════ */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--fg); color: var(--bg); padding: 10px 24px;
+  border-radius: var(--radius); font-weight: 600; font-size: 0.875rem;
+  opacity: 0; transition: opacity .3s; z-index: 200; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* ═══════════ About Section ═══════════ */
+.about-section {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.about-card { padding: 20px; }
+.about-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; color: var(--fg); }
+.about-card p, .about-card li { font-size: 0.825rem; color: var(--fg-muted); line-height: 1.7; }
+.about-card ul { padding-right: 16px; }
+.about-card li { margin-bottom: 4px; }
+.about-card .hl { color: var(--warning); font-weight: 600; }
+.about-card .gr { color: var(--success); font-weight: 600; }
+.about-card .rd { color: var(--destructive); font-weight: 600; }
+
+/* ═══════════ MOBILE ═══════════ */
+@media (max-width: 900px) {
+  .grid-main { grid-template-columns: 1fr; }
+  .about-section { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .page { padding: 12px 10px; }
+  .page-title { font-size: 1.2rem; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-card { padding: 12px; }
+  .stat-value { font-size: 1.15rem; }
+  .step { height: 24px; font-size: 0.6rem; border-radius: 4px; }
+  .mini-stats { grid-template-columns: 1fr 1fr; }
+  .mini-stat .ms-val { font-size: 0.95rem; }
+  .log-scroll { max-height: 200px; font-size: 0.7rem; }
+  .hist-scroll { max-height: 150px; font-size: 0.7rem; }
+  .btn-lg { height: 44px; }
+  .card-body { padding: 12px 14px; }
+  .card-header { padding: 12px 14px 0; }
+  .overlay-card { padding: 24px 16px; }
+  .overlay-card h2 { font-size: 1.2rem; }
+  .overlay-card .big-num { font-size: 1.8rem; }
+  .overlay-btns { flex-direction: column; }
+  .overlay-btns .btn { width: 100%; }
+  .tip .tt { width: 200px; font-size: 0.72rem; }
+  .about-card { padding: 14px; }
+  .about-card h3 { font-size: 0.85rem; }
+  .about-card p, .about-card li { font-size: 0.78rem; }
+}
+@media (max-width: 380px) {
+  .stat-value { font-size: 1rem; }
+  .step { height: 20px; font-size: 0.5rem; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══════ Header ═══════ -->
+  <div class="page-header">
+    <div class="page-title">17 הכפלות — סימולציית לופ חי</div>
+    <div class="page-desc" id="subtitleText">$5 התחלה | מכפיל ×1.80 | קופת צד 20% | 17 ניצחונות רצופים להשלמה</div>
+  </div>
+
+  <!-- ═══════ Stats Row ═══════ -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label tip">הון פעיל<span class="tt">הכסף שנמצא כרגע "על השולחן" בלופ הנוכחי. מוכפל בכל ניצחון. אובד בהפסד.</span></div>
+      <div class="stat-value" id="activeCap" style="color:var(--success)">$5.00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label tip">קופת צד<span class="tt">כסף שחולץ לבטוח בכל ניצחון. לעולם לא אובד. מממן לופים חדשים אחרי כישלון.</span></div>
+      <div class="stat-value" id="sidePot" style="color:var(--warning)">$0.00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label tip">תקציב נותר<span class="tt">כמה נשאר מהתקציב ההתחלתי. לא כולל מיחזור מקופות צד.</span></div>
+      <div class="stat-value" id="budgetLeft" style="color:var(--info)">$5,000</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label tip">כסף זמין<span class="tt">סך הכסף שזמין עכשיו לפתיחת לופים. כולל תקציב + קופות צד ממוחזרות.</span></div>
+      <div class="stat-value" id="availFunds" style="color:var(--fg)">$5,000</div>
+    </div>
+  </div>
+
+  <!-- ═══════ Main Grid ═══════ -->
+  <div class="grid-main">
+
+    <!-- LEFT: Progress + Log -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <!-- Steps Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">התקדמות לופ נוכחי</span>
+          <span class="badge badge-outline" id="loopBadge">לופ #1</span>
+        </div>
+        <div class="card-body">
+          <div class="steps-row" id="stepsBar"></div>
+          <div class="mini-stats">
+            <div class="mini-stat"><div class="ms-label">שלב</div><div class="ms-val" id="currentStep">0/17</div></div>
+            <div class="mini-stat"><div class="ms-label">לופ</div><div class="ms-val" id="currentLoop">#1</div></div>
+            <div class="mini-stat"><div class="ms-label">עסקאות</div><div class="ms-val" id="totalTrades">0</div></div>
+            <div class="mini-stat"><div class="ms-label tip">שיא רצף<span class="tt">הרצף הכי ארוך של ניצחונות שהיה עד עכשיו. כשזה מגיע ל-17 — הושלם!</span></div><div class="ms-val" id="bestStreak">0</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trade Log Card -->
+      <div class="card" style="flex:1;">
+        <div class="card-header"><span class="card-title">יומן עסקאות</span></div>
+        <div class="card-body">
+          <div class="log-scroll" id="tradeLog"></div>
+          <div class="explain">
+            <span style="color:var(--success)">ירוק</span> = ניצחון — ההון הוכפל, חלק יצא לקופת צד |
+            <span style="color:var(--destructive)">אדום</span> = הפסד — ההון אבד, קופת צד נשמרה |
+            <span style="color:var(--info)">כחול</span> = לופ חדש התחיל
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Controls + History -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <!-- Controls Card -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">הגדרות</span></div>
+        <div class="card-body">
+          <div class="param"><span class="param-label tip">הון ללופ<span class="tt">כל לופ מתחיל עם $5. אם נכשל, ה-$5 אובדים אבל קופת הצד נשמרת.</span></span><span class="param-val">$5.00</span></div>
+          <div class="param"><span class="param-label tip">יעד<span class="tt">17 ניצחונות ברצף. כל הפסד — גם אחרי 16 — מאפס ל-0.</span></span><span class="param-val">17 רצופים</span></div>
+          <div class="param"><span class="param-label tip">הגדרת ניצחון<span class="tt">ניצחון = עסקה עם רווח ≥ 2× הסיכון. רווח קטן יותר = הפסד.</span></span><span class="param-val">R ≥ 2.0</span></div>
+
+          <div style="height:8px;"></div>
+
+          <div class="field">
+            <div class="field-label"><span class="tip">אחוז הצלחה<span class="tt">כמה עסקאות מצליחות. 55% = הסף שבו המערכת ממנה את עצמה. 70%+ = מהיר.</span></span><span class="field-val" id="rateDisplay">55%</span></div>
+            <input type="range" id="rateSlider" min="40" max="85" value="55">
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span class="tip">תקציב<span class="tt">סך הכסף להתחלה. $5,000 = 1,000 לופים. עם מיחזור קופות צד — הרבה יותר.</span></span><span class="field-val" id="budgetDisplay">$5,000</span></div>
+            <input type="range" id="budgetSlider" min="500" max="25000" value="5000" step="500">
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span class="tip">הפרשה לקופת צד<span class="tt">כמה מהרווח יוצא לקופת צד בכל ניצחון. יותר = מכפיל נמוך יותר אבל מיחזור חזק יותר.</span></span><span class="field-val" id="reserveDisplay">20%</span></div>
+            <input type="range" id="reserveSlider" min="5" max="50" value="20">
+          </div>
+
+          <div class="mult-info" id="multiplierInfo">מכפיל: <span class="hi">×1.80</span> | יעד סופי: <span class="hi">$136,618</span></div>
+
+          <div class="field">
+            <div class="field-label"><span>מהירות</span><span class="field-val" id="speedDisplay" style="color:var(--fg-muted)">20ms</span></div>
+            <input type="range" id="speedSlider" min="1" max="100" value="20">
+          </div>
+
+          <button class="btn btn-primary btn-full btn-lg" id="btnStart" onclick="startSim()">התחל לופ</button>
+          <button class="btn btn-destructive btn-full btn-lg" id="btnStop" onclick="stopSim()" style="display:none;">עצור</button>
+        </div>
+      </div>
+
+      <!-- History Card -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">היסטוריית לופים</span></div>
+        <div class="card-body">
+          <div class="hist-scroll" id="loopHistory"></div>
+          <div class="explain">
+            <span style="color:var(--destructive)">אדום</span> = נכשל מוקדם (0-2 שלבים) |
+            <span style="color:var(--fg-muted)">אפור</span> = 3-4 שלבים |
+            <span style="color:var(--warning)">זהב</span> = 5+ שלבים (ייצר רווח נטו!)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ About Section ═══════ -->
+  <div class="about-section">
+    <div class="card about-card">
+      <h3>מה זו הסימולציה הזו?</h3>
+      <p>הסימולציה הזו מדמה את מודל <b>"17 הכפלות"</b> — מנגנון מחקרי שבודק האם ניתן להפוך <span class="hl">$5</span> ל-<span class="hl">$136,618</span> דרך רצף של 17 עסקאות מוצלחות.</p>
+      <p style="margin-top:8px;">הרעיון: כל עסקה שמצליחה מכפילה את ההון. אבל 20% מהרווח יוצא לקופת צד בטוחה. אם בדרך יש הפסד — ההון הפעיל אובד, אבל קופת הצד נשמרת ומממנת ניסיונות חדשים.</p>
+    </div>
+    <div class="card about-card">
+      <h3>מה היא בודקת?</h3>
+      <p>השאלה המרכזית: <b>בהינתן אחוז הצלחה מסוים, האם 17 ניצחונות רצופים הם ריאליסטיים?</b></p>
+      <p style="margin-top:8px;">התשובה המפתיעה: קופות הצד יוצרות מנגנון מיחזור. מ-<span class="gr">55%</span> הצלחה ומעלה, גם לופים שנכשלים מחזירים יותר ממה שעלו — והמערכת ממנה את עצמה עד שמגיע הרצף של 17.</p>
+    </div>
+    <div class="card about-card">
+      <h3>הכללים</h3>
+      <ul>
+        <li><b>ניצחון</b> = עסקה עם רווח שהוא לפחות <span class="gr">פי 2</span> מהסיכון</li>
+        <li><b>הפסד</b> = כל דבר אחר (כולל רווח קטן)</li>
+        <li>כל הפסד <span class="rd">מאפס את הרצף</span> — גם אחרי 16 ניצחונות</li>
+        <li>קופת הצד <span class="hl">לעולם לא אובדת</span></li>
+        <li>קופת הצד ממנה לופים חדשים אוטומטית</li>
+      </ul>
+    </div>
+    <div class="card about-card">
+      <h3>למה קופת הצד משנה הכל?</h3>
+      <p>לופ שמגיע ל-5 ניצחונות ואז נכשל: שילם <span class="rd">$5</span> כדי להתחיל, אבל צבר <span class="gr">$22</span> בקופת צד. רווח נטו: <span class="gr">+$17</span> מכישלון!</p>
+      <p style="margin-top:8px;">מ-<span class="hl">52%</span> הצלחה ומעלה, כל לופ מייצר <b>יותר</b> קופת צד ממה שהוא עולה. הכסף ממחזר את עצמו, ותמיד יש תקציב ללופ הבא. השאלה היא לא "אם" — אלא <b>"מתי"</b> יגיע הרצף של 17.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════ Overlay ═══════ -->
+<div class="overlay" id="overlay">
+  <div class="overlay-card">
+    <h2>17 הכפלות הושלמו!</h2>
+    <div class="big-num" id="finalValue">$136,618</div>
+    <div class="detail" id="finalDetail"></div>
+    <div class="overlay-btns">
+      <button class="btn btn-outline" onclick="closeOverlay()">סגור</button>
+      <button class="btn btn-primary" onclick="copyShareText()">העתק לשיתוף</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast">הועתק!</div>
+
+<!-- ═══════ Script ═══════ -->
+<script>
+const TARGET=17, LOOP_START=5;
+let reservePct=.2, multiplier=1.8;
+let running=false, timerId=null, runnerRate=.55, initialBudget=5000, speed=20;
+let available=0, budgetSpent=0, sidePotTotal=0, activeCap=0, streak=0, bestStreak=0, loopNum=0, totalTrades=0, loopSidePot=0;
+
+const $=id=>document.getElementById(id);
+const fmt=(n,d=2)=>n>=1000?'$'+n.toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d}):'$'+n.toFixed(d);
+
+function calcTarget(){const m=multiplier,a=LOOP_START*Math.pow(m,TARGET),s=reservePct*LOOP_START*(Math.pow(m,TARGET)-1)/(m-1);return{a,s,t:a+s}}
+function updMult(){const t=calcTarget();$('multiplierInfo').innerHTML=`\u05de\u05db\u05e4\u05d9\u05dc: <span class="hi">\u00d7${multiplier.toFixed(2)}</span> | \u05d9\u05e2\u05d3 \u05e1\u05d5\u05e4\u05d9: <span class="hi">${fmt(t.t,0)}</span>`;$('subtitleText').textContent=`$5 \u05d4\u05ea\u05d7\u05dc\u05d4 | \u05de\u05db\u05e4\u05d9\u05dc \u00d7${multiplier.toFixed(2)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3 ${(reservePct*100).toFixed(0)}% | 17 \u05e0\u05d9\u05e6\u05d7\u05d5\u05e0\u05d5\u05ea \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd \u05dc\u05d4\u05e9\u05dc\u05de\u05d4`}
+
+function initSteps(){const b=$('stepsBar');b.innerHTML='';for(let i=1;i<=TARGET;i++){const d=document.createElement('div');d.className='step';d.textContent=i;d.id='s'+i;b.appendChild(d)}}
+function updSteps(){for(let i=1;i<=TARGET;i++){const d=$('s'+i);d.className='step';if(i<streak+1)d.className+=' done';else if(i===streak+1&&running)d.className+=' now'}}
+function flash(s,c){const d=$('s'+s);if(d){d.className='step '+c;if(c==='fail')setTimeout(()=>{d.className='step'},600)}}
+
+function updStats(){
+  $('activeCap').textContent=fmt(activeCap);
+  $('sidePot').textContent=fmt(sidePotTotal);
+  $('budgetLeft').textContent=fmt(Math.max(0,initialBudget-budgetSpent));
+  $('availFunds').textContent=fmt(available);
+  $('currentStep').textContent=streak+'/17';
+  $('currentLoop').textContent='#'+loopNum;
+  $('loopBadge').textContent='\u05dc\u05d5\u05e4 #'+loopNum;
+  $('totalTrades').textContent=totalTrades.toLocaleString();
+  $('bestStreak').textContent=bestStreak;
+}
+
+function log(m,c='info'){const d=$('tradeLog'),l=document.createElement('div');l.className='log-line '+c;l.textContent=m;d.appendChild(l);d.scrollTop=d.scrollHeight;while(d.children.length>500)d.removeChild(d.firstChild)}
+function logH(m,col='#a1a1aa'){const d=$('loopHistory'),l=document.createElement('div');l.className='hist-line';l.style.color=col;l.textContent=m;d.insertBefore(l,d.firstChild);while(d.children.length>200)d.removeChild(d.lastChild)}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+
+function copyShareText(){
+  const tv=activeCap+sidePotTotal;
+  const t=[`17 \u05d4\u05db\u05e4\u05dc\u05d5\u05ea \u2014 \u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d4 \u05d4\u05d5\u05e9\u05dc\u05de\u05d4!`,``,`$5 \u05d4\u05e4\u05db\u05d5 \u05dc-${fmt(tv)}`,``,`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)}`,`\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotTotal)}`,`\u05dc\u05d5\u05e4\u05d9\u05dd: ${loopNum.toLocaleString()} | \u05e2\u05e1\u05e7\u05d0\u05d5\u05ea: ${totalTrades.toLocaleString()}`,`\u05e9\u05d9\u05d0 \u05e8\u05e6\u05e3: ${bestStreak}`,``,`\u05d4\u05d2\u05d3\u05e8\u05d5\u05ea:`,`\u05d4\u05e6\u05dc\u05d7\u05d4: ${(runnerRate*100).toFixed(0)}% | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${(reservePct*100).toFixed(0)}%`,`\u05de\u05db\u05e4\u05d9\u05dc: \u00d7${multiplier.toFixed(2)} | \u05ea\u05e7\u05e6\u05d9\u05d1: ${fmt(initialBudget)}`].join('\n');
+  navigator.clipboard.writeText(t).then(()=>toast('\u05d4\u05d5\u05e2\u05ea\u05e7!')).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);toast('\u05d4\u05d5\u05e2\u05ea\u05e7!')});
+}
+
+function newLoop(){
+  if(available<LOOP_START)return false;
+  available-=LOOP_START;budgetSpent=Math.min(budgetSpent+LOOP_START,initialBudget);
+  loopNum++;streak=0;activeCap=LOOP_START;loopSidePot=0;
+  updSteps();log(`--- \u05dc\u05d5\u05e4 #${loopNum} \u05d4\u05ea\u05d7\u05d9\u05dc | \u05d4\u05d5\u05df: ${fmt(activeCap)} | \u05d6\u05de\u05d9\u05df: ${fmt(available)} ---`,'info');return true;
+}
+
+function trade(){
+  if(!running)return;
+  totalTrades++;
+  if(Math.random()<runnerRate){
+    streak++;const p=activeCap,sc=p*reservePct,na=activeCap*2-sc;
+    loopSidePot+=sc;sidePotTotal+=sc;
+    log(`  WIN #${streak}: ${fmt(activeCap)} \u2192 ${fmt(na)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3 +${fmt(sc)}`,'win');
+    activeCap=na;if(streak>bestStreak)bestStreak=streak;
+    flash(streak,'done');updSteps();updStats();
+    if(streak>=TARGET){
+      running=false;clearTimeout(timerId);
+      const tv=activeCap+sidePotTotal;
+      logH(`\u05dc\u05d5\u05e4 #${loopNum}: \u05d4\u05d5\u05e9\u05dc\u05dd! 17/17 | ${fmt(tv)}`,'#eab308');
+      log(`\u05dc\u05d5\u05e4 #${loopNum} \u05d4\u05d5\u05e9\u05dc\u05dd! 17 \u05e0\u05d9\u05e6\u05d7\u05d5\u05e0\u05d5\u05ea \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd!`,'gold');
+      log(`\u05d4\u05d5\u05df: ${fmt(activeCap)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotTotal)} | \u05e1\u05d4"\u05db: ${fmt(tv)}`,'gold');
+      showDone(tv);$('btnStart').style.display='';$('btnStop').style.display='none';return;
+    }
+    timerId=setTimeout(trade,speed);
+  } else {
+    const fa=streak;
+    log(`  \u05d4\u05e4\u05e1\u05d3 \u05d1\u05e9\u05dc\u05d1 ${streak+1} | \u05d4\u05d5\u05df ${fmt(activeCap)} \u05d0\u05d1\u05d3 | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(loopSidePot)}`,'loss');
+    logH(`\u05dc\u05d5\u05e4 #${loopNum}: \u05e0\u05db\u05e9\u05dc \u05d1\u05e9\u05dc\u05d1 ${fa}/${TARGET} | \u05e7"\u05e6: ${fmt(loopSidePot)}`,fa>=5?'#eab308':fa>=3?'#a1a1aa':'#ef4444');
+    if(streak>0)flash(streak+1,'fail');
+    available+=loopSidePot;streak=0;activeCap=0;loopSidePot=0;updSteps();updStats();
+    if(available>=LOOP_START){setTimeout(()=>{if(!running)return;newLoop();updStats();timerId=setTimeout(trade,speed)},Math.min(speed*3,200))}
+    else{running=false;log(`\u05e0\u05d2\u05de\u05e8 \u05d4\u05db\u05e1\u05e3. \u05d6\u05de\u05d9\u05df: ${fmt(available)}`,'loss');$('btnStart').style.display='';$('btnStop').style.display='none'}
+  }
+}
+
+function startSim(){
+  runnerRate=parseInt($('rateSlider').value)/100;initialBudget=parseInt($('budgetSlider').value);
+  reservePct=parseInt($('reserveSlider').value)/100;multiplier=2-reservePct;speed=101-parseInt($('speedSlider').value);
+  available=initialBudget;budgetSpent=0;sidePotTotal=0;activeCap=0;streak=0;bestStreak=0;loopNum=0;totalTrades=0;loopSidePot=0;
+  $('tradeLog').innerHTML='';$('loopHistory').innerHTML='';initSteps();updMult();
+  running=true;$('btnStart').style.display='none';$('btnStop').style.display='';
+  log(`\u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d4 \u05d4\u05ea\u05d7\u05d9\u05dc\u05d4 | \u05d4\u05e6\u05dc\u05d7\u05d4: ${(runnerRate*100).toFixed(0)}% | \u05ea\u05e7\u05e6\u05d9\u05d1: ${fmt(initialBudget)} | \u05e7"\u05e6: ${(reservePct*100).toFixed(0)}%`,'info');
+  newLoop();updStats();timerId=setTimeout(trade,speed);
+}
+
+function stopSim(){running=false;clearTimeout(timerId);log('--- \u05e0\u05e2\u05e6\u05e8 ---','info');$('btnStart').style.display='';$('btnStop').style.display='none'}
+
+function showDone(tv){
+  $('finalValue').textContent=fmt(tv);
+  $('finalDetail').innerHTML=`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)}<br>\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotTotal)}<br>\u05dc\u05d5\u05e4\u05d9\u05dd: ${loopNum.toLocaleString()} | \u05e2\u05e1\u05e7\u05d0\u05d5\u05ea: ${totalTrades.toLocaleString()}<br>\u05e9\u05d9\u05d0 \u05e8\u05e6\u05e3: ${bestStreak}<br>\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${(reservePct*100).toFixed(0)}% | \u05de\u05db\u05e4\u05d9\u05dc: \u00d7${multiplier.toFixed(2)}`;
+  $('overlay').classList.add('show');
+}
+function closeOverlay(){$('overlay').classList.remove('show')}
+
+$('rateSlider').oninput=function(){$('rateDisplay').textContent=this.value+'%'};
+$('budgetSlider').oninput=function(){$('budgetDisplay').textContent='$'+parseInt(this.value).toLocaleString()};
+$('reserveSlider').oninput=function(){reservePct=parseInt(this.value)/100;multiplier=2-reservePct;$('reserveDisplay').textContent=this.value+'%';updMult()};
+$('speedSlider').oninput=function(){speed=101-parseInt(this.value);$('speedDisplay').textContent=speed+'ms'};
+
+document.addEventListener('click',e=>{document.querySelectorAll('.tip.tapped').forEach(t=>t.classList.remove('tapped'));const t=e.target.closest('.tip');if(t){e.preventDefault();t.classList.add('tapped')}});
+
+initSteps();updStats();updMult();
+</script>
+</body>
+</html>
