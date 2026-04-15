@@ -18,8 +18,8 @@
   --radius-sm:   8px;
 
   --fg:          #f0f2f8;
-  --fg-muted:    #8494b2;
-  --fg-dim:      #5a6a88;
+  --fg-muted:    #9aa8c2;
+  --fg-dim:      #7080a0;
 
   --green:       #00e676;
   --green-glow:  rgba(0,230,118,.12);
@@ -67,11 +67,9 @@ body {
 .page-title {
   font-size: 1.75rem; font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, var(--gold) 0%, #fff 50%, var(--gold) 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--gold);
 }
-.page-desc { color: var(--fg-dim); font-size: 0.85rem; margin-top: 6px; letter-spacing: 0.02em; }
+.page-desc { color: var(--fg-muted); font-size: 0.85rem; margin-top: 6px; letter-spacing: 0.02em; }
 
 /* ═══════ Stats ═══════ */
 .stats-grid {
@@ -98,7 +96,7 @@ body {
 .stat-card:nth-child(1):hover { border-color: rgba(0,230,118,.3); box-shadow: var(--glow-green); }
 .stat-card:nth-child(2):hover { border-color: rgba(255,193,7,.3); box-shadow: var(--glow-gold); }
 
-.stat-label { font-size: 0.72rem; font-weight: 500; color: var(--fg-dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.stat-label { font-size: 0.78rem; font-weight: 600; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
 .stat-value {
   font-size: 1.6rem; font-weight: 800; font-family: var(--mono);
   letter-spacing: -0.03em;
@@ -125,7 +123,7 @@ body {
   display: flex; justify-content: space-between; align-items: center;
   border-bottom: 1px solid var(--border);
 }
-.card-title { font-size: 0.82rem; font-weight: 600; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .05em; }
+.card-title { font-size: 0.85rem; font-weight: 600; color: var(--fg); text-transform: uppercase; letter-spacing: .04em; }
 .card-body { padding: 16px 18px; }
 
 /* ═══════ Badge ═══════ */
@@ -169,7 +167,7 @@ body {
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: 10px 4px;
 }
-.mini-stat .ms-label { font-size: 0.62rem; color: var(--fg-dim); text-transform: uppercase; letter-spacing: .05em; }
+.mini-stat .ms-label { font-size: 0.68rem; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; }
 .mini-stat .ms-val { font-size: 1.05rem; font-weight: 700; font-family: var(--mono); margin-top: 2px; color: var(--fg); }
 
 /* ═══════ Log ═══════ */
