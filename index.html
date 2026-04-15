@@ -406,20 +406,20 @@ input[type=range]::-webkit-slider-thumb:hover {
 
   <div class="stats-grid">
     <div class="stat-card">
-      <div class="stat-label tip">הון פעיל<span class="tt">הכסף שנמצא כרגע "על השולחן" בלופ הנוכחי. מוכפל בכל ניצחון. אובד בהפסד.</span></div>
-      <div class="stat-value" id="activeCap" style="color:var(--green)">$5.00</div>
+      <div class="stat-label tip">הון פעיל (על השולחן)<span class="tt">הכסף שנמצא כרגע בלופ הנוכחי. מוכפל בכל ניצחון. אובד בהפסד.</span></div>
+      <div class="stat-value" id="activeCap" style="color:var(--green)">$0.00</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label tip">כסף זמין ללופים<span class="tt">כמה כסף יש לך עכשיו בכיס לפתוח לופים חדשים. כולל תקציב שנותר + קופות צד שחזרו מלופים שנכשלו.</span></div>
-      <div class="stat-value" id="availFunds" style="color:var(--gold)">$5,000</div>
+      <div class="stat-label tip">קופה ראשית<span class="tt">התקציב ההתחלתי. משלם עבור לופים חדשים. כשנגמר — קופת הצד משתלטת.</span></div>
+      <div class="stat-value" id="mainPool" style="color:var(--blue)">$5,000</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label tip">קופת צד (נצבר)<span class="tt">סה"כ כסף שנוצר מקופות צד מכל הלופים. מספר היסטורי — חלק גדול כבר חזר למשחק ומימן לופים חדשים.</span></div>
-      <div class="stat-value" id="sidePot" style="color:var(--fg-muted)">$0.00</div>
+      <div class="stat-label tip">קופת צד<span class="tt">כסף אמיתי שלך! נצבר מ-20% של כל ניצחון. כשהקופה הראשית נגמרת, קופת הצד ממנה לופים חדשים.</span></div>
+      <div class="stat-value" id="sidePot" style="color:var(--gold)">$0.00</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label tip">רווח/הפסד נטו<span class="tt">כמה הרווחת או הפסדת מתחילת הסימולציה. = (כסף זמין + הון פעיל) - תקציב התחלתי.</span></div>
-      <div class="stat-value" id="netPnl" style="color:var(--fg-dim)">$0.00</div>
+      <div class="stat-label tip">סה"כ שלי<span class="tt">כל הכסף שיש לך עכשיו: הון פעיל + קופה ראשית + קופת צד. זה הכסף האמיתי שלך.</span></div>
+      <div class="stat-value" id="totalMine" style="color:var(--fg)">$5,000</div>
     </div>
   </div>
 
@@ -547,7 +547,7 @@ input[type=range]::-webkit-slider-thumb:hover {
 const TARGET=17, LOOP_START=5;
 let reservePct=.2, multiplier=1.8;
 let running=false, timerId=null, runnerRate=.55, initialBudget=5000, speed=20;
-let available=0, budgetSpent=0, sidePotTotal=0, activeCap=0, streak=0, bestStreak=0, loopNum=0, totalTrades=0, loopSidePot=0;
+let mainPool=0, sidePotPool=0, activeCap=0, streak=0, bestStreak=0, loopNum=0, totalTrades=0, loopSidePot=0;
 
 const $=id=>document.getElementById(id);
 const fmt=(n,d=2)=>n>=1000?'$'+n.toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d}):'$'+n.toFixed(d);
@@ -561,12 +561,12 @@ function flash(s,c){const d=$('s'+s);if(d){d.className='step '+c;if(c==='fail')s
 
 function updStats(){
   $('activeCap').textContent=fmt(activeCap);
-  $('sidePot').textContent=fmt(sidePotTotal);
-  $('availFunds').textContent=fmt(available);
-  const net=available+activeCap-initialBudget;
-  const ne=$('netPnl');
-  ne.textContent=(net>=0?'+':'')+fmt(net);
-  ne.style.color=net>=0?'var(--green)':'var(--red)';
+  $('mainPool').textContent=fmt(mainPool);
+  $('sidePot').textContent=fmt(sidePotPool);
+  const total=activeCap+mainPool+sidePotPool;
+  const te=$('totalMine');
+  te.textContent=fmt(total);
+  te.style.color=total>=initialBudget?'var(--green)':'var(--red)';
   $('currentStep').textContent=streak+'/17';
   $('currentLoop').textContent='#'+loopNum;
   $('loopBadge').textContent='\u05dc\u05d5\u05e4 #'+loopNum;
@@ -579,16 +579,19 @@ function logH(m,col='#8494b2'){const d=$('loopHistory'),l=document.createElement
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
 
 function copyShareText(){
-  const tv=activeCap+available+loopSidePot;
-  const t=[`17 \u05d4\u05db\u05e4\u05dc\u05d5\u05ea \u2014 \u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d4 \u05d4\u05d5\u05e9\u05dc\u05de\u05d4!`,``,`$5 \u05d4\u05e4\u05db\u05d5 \u05dc-${fmt(tv)}`,``,`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)}`,`\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotTotal)}`,`\u05dc\u05d5\u05e4\u05d9\u05dd: ${loopNum.toLocaleString()} | \u05e2\u05e1\u05e7\u05d0\u05d5\u05ea: ${totalTrades.toLocaleString()}`,`\u05e9\u05d9\u05d0 \u05e8\u05e6\u05e3: ${bestStreak}`,``,`\u05d4\u05d2\u05d3\u05e8\u05d5\u05ea:`,`\u05d4\u05e6\u05dc\u05d7\u05d4: ${(runnerRate*100).toFixed(0)}% | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${(reservePct*100).toFixed(0)}%`,`\u05de\u05db\u05e4\u05d9\u05dc: \u00d7${multiplier.toFixed(2)} | \u05ea\u05e7\u05e6\u05d9\u05d1: ${fmt(initialBudget)}`].join('\n');
+  const tv=activeCap+mainPool+sidePotPool;
+  const t=[`17 \u05d4\u05db\u05e4\u05dc\u05d5\u05ea \u2014 \u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d4 \u05d4\u05d5\u05e9\u05dc\u05de\u05d4!`,``,`$5 \u05d4\u05e4\u05db\u05d5 \u05dc-${fmt(tv)}`,``,`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)}`,`\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotPool)}`,`\u05e7\u05d5\u05e4\u05d4 \u05e8\u05d0\u05e9\u05d9\u05ea: ${fmt(mainPool)}`,`\u05dc\u05d5\u05e4\u05d9\u05dd: ${loopNum.toLocaleString()} | \u05e2\u05e1\u05e7\u05d0\u05d5\u05ea: ${totalTrades.toLocaleString()}`,`\u05e9\u05d9\u05d0 \u05e8\u05e6\u05e3: ${bestStreak}`,``,`\u05d4\u05d2\u05d3\u05e8\u05d5\u05ea:`,`\u05d4\u05e6\u05dc\u05d7\u05d4: ${(runnerRate*100).toFixed(0)}% | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${(reservePct*100).toFixed(0)}%`,`\u05de\u05db\u05e4\u05d9\u05dc: \u00d7${multiplier.toFixed(2)} | \u05ea\u05e7\u05e6\u05d9\u05d1: ${fmt(initialBudget)}`].join('\n');
   navigator.clipboard.writeText(t).then(()=>toast('\u05d4\u05d5\u05e2\u05ea\u05e7!')).catch(()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');document.body.removeChild(a);toast('\u05d4\u05d5\u05e2\u05ea\u05e7!')});
 }
 
 function newLoop(){
-  if(available<LOOP_START)return false;
-  available-=LOOP_START;budgetSpent=Math.min(budgetSpent+LOOP_START,initialBudget);
+  // First try main pool, then side pot
+  if(mainPool>=LOOP_START){mainPool-=LOOP_START;}
+  else if(sidePotPool>=LOOP_START){sidePotPool-=LOOP_START;}
+  else return false;
   loopNum++;streak=0;activeCap=LOOP_START;loopSidePot=0;
-  updSteps();log(`--- \u05dc\u05d5\u05e4 #${loopNum} \u05d4\u05ea\u05d7\u05d9\u05dc | \u05d4\u05d5\u05df: ${fmt(activeCap)} | \u05d6\u05de\u05d9\u05df: ${fmt(available)} ---`,'info');return true;
+  const src=mainPool>0?'\u05e7\u05d5\u05e4\u05d4 \u05e8\u05d0\u05e9\u05d9\u05ea':'\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3';
+  updSteps();log(`--- \u05dc\u05d5\u05e4 #${loopNum} (${src}) | \u05d4\u05d5\u05df: ${fmt(activeCap)} | \u05e8\u05d0\u05e9\u05d9\u05ea: ${fmt(mainPool)} | \u05e6\u05d3: ${fmt(sidePotPool)} ---`,'info');return true;
 }
 
 function trade(){
@@ -596,16 +599,16 @@ function trade(){
   totalTrades++;
   if(Math.random()<runnerRate){
     streak++;const p=activeCap,sc=p*reservePct,na=activeCap*2-sc;
-    loopSidePot+=sc;sidePotTotal+=sc;
+    loopSidePot+=sc;sidePotPool+=sc;
     log(`  WIN #${streak}: ${fmt(activeCap)} \u2192 ${fmt(na)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3 +${fmt(sc)}`,'win');
     activeCap=na;if(streak>bestStreak)bestStreak=streak;
     flash(streak,'done');updSteps();updStats();
     if(streak>=TARGET){
       running=false;clearTimeout(timerId);
-      const tv=activeCap+available+loopSidePot;
+      const tv=activeCap+mainPool+sidePotPool;
       logH(`\u05dc\u05d5\u05e4 #${loopNum}: \u05d4\u05d5\u05e9\u05dc\u05dd! 17/17 | ${fmt(tv)}`,'#ffc107');
       log(`\u05dc\u05d5\u05e4 #${loopNum} \u05d4\u05d5\u05e9\u05dc\u05dd! 17 \u05e0\u05d9\u05e6\u05d7\u05d5\u05e0\u05d5\u05ea \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd!`,'gold');
-      log(`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)} | \u05e7"\u05e6 \u05dc\u05d5\u05e4 \u05de\u05e0\u05e6\u05d7: ${fmt(loopSidePot)} | \u05d6\u05de\u05d9\u05df: ${fmt(available)} | \u05e1\u05d4"\u05db: ${fmt(tv)}`,'gold');
+      log(`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotPool)} | \u05e8\u05d0\u05e9\u05d9\u05ea: ${fmt(mainPool)} | \u05e1\u05d4"\u05db: ${fmt(tv)}`,'gold');
       showDone(tv);$('btnStart').style.display='';$('btnStop').style.display='none';return;
     }
     timerId=setTimeout(trade,speed);
@@ -614,16 +617,17 @@ function trade(){
     log(`  \u05d4\u05e4\u05e1\u05d3 \u05d1\u05e9\u05dc\u05d1 ${streak+1} | \u05d4\u05d5\u05df ${fmt(activeCap)} \u05d0\u05d1\u05d3 | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(loopSidePot)}`,'loss');
     logH(`\u05dc\u05d5\u05e4 #${loopNum}: \u05e0\u05db\u05e9\u05dc \u05d1\u05e9\u05dc\u05d1 ${fa}/${TARGET} | \u05e7"\u05e6: ${fmt(loopSidePot)}`,fa>=5?'#ffc107':fa>=3?'#8494b2':'#ff5252');
     if(streak>0)flash(streak+1,'fail');
-    available+=loopSidePot;streak=0;activeCap=0;loopSidePot=0;updSteps();updStats();
-    if(available>=LOOP_START){setTimeout(()=>{if(!running)return;newLoop();updStats();timerId=setTimeout(trade,speed)},Math.min(speed*3,200))}
-    else{running=false;log(`\u05e0\u05d2\u05de\u05e8 \u05d4\u05db\u05e1\u05e3. \u05d6\u05de\u05d9\u05df: ${fmt(available)}`,'loss');$('btnStart').style.display='';$('btnStop').style.display='none'}
+    // sidePotPool already has the money from wins — no need to add
+    streak=0;activeCap=0;loopSidePot=0;updSteps();updStats();
+    if(mainPool>=LOOP_START||sidePotPool>=LOOP_START){setTimeout(()=>{if(!running)return;newLoop();updStats();timerId=setTimeout(trade,speed)},Math.min(speed*3,200))}
+    else{running=false;log(`\u05e0\u05d2\u05de\u05e8 \u05d4\u05db\u05e1\u05e3. \u05e8\u05d0\u05e9\u05d9\u05ea: ${fmt(mainPool)} | \u05e6\u05d3: ${fmt(sidePotPool)}`,'loss');$('btnStart').style.display='';$('btnStop').style.display='none'}
   }
 }
 
 function startSim(){
   runnerRate=parseInt($('rateSlider').value)/100;initialBudget=parseInt($('budgetSlider').value);
   reservePct=parseInt($('reserveSlider').value)/100;multiplier=2-reservePct;speed=101-parseInt($('speedSlider').value);
-  available=initialBudget;budgetSpent=0;sidePotTotal=0;activeCap=0;streak=0;bestStreak=0;loopNum=0;totalTrades=0;loopSidePot=0;
+  mainPool=initialBudget;sidePotPool=0;activeCap=0;streak=0;bestStreak=0;loopNum=0;totalTrades=0;loopSidePot=0;
   $('tradeLog').innerHTML='';$('loopHistory').innerHTML='';initSteps();updMult();
   running=true;$('btnStart').style.display='none';$('btnStop').style.display='';
   log(`\u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d4 \u05d4\u05ea\u05d7\u05d9\u05dc\u05d4 | \u05d4\u05e6\u05dc\u05d7\u05d4: ${(runnerRate*100).toFixed(0)}% | \u05ea\u05e7\u05e6\u05d9\u05d1: ${fmt(initialBudget)} | \u05e7"\u05e6: ${(reservePct*100).toFixed(0)}%`,'info');
@@ -634,7 +638,7 @@ function stopSim(){running=false;clearTimeout(timerId);log('--- \u05e0\u05e2\u05
 
 function showDone(tv){
   $('finalValue').textContent=fmt(tv);
-  $('finalDetail').innerHTML=`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc (\u05dc\u05d5\u05e4 \u05de\u05e0\u05e6\u05d7): ${fmt(activeCap)}<br>\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3 \u05de\u05dc\u05d5\u05e4 \u05de\u05e0\u05e6\u05d7: ${fmt(loopSidePot)}<br>\u05db\u05e1\u05e3 \u05e0\u05d5\u05ea\u05e8 \u05de\u05dc\u05d5\u05e4\u05d9\u05dd \u05e7\u05d5\u05d3\u05de\u05d9\u05dd: ${fmt(available)}<br>\u05dc\u05d5\u05e4\u05d9\u05dd: ${loopNum.toLocaleString()} | \u05e2\u05e1\u05e7\u05d0\u05d5\u05ea: ${totalTrades.toLocaleString()}<br>\u05e9\u05d9\u05d0 \u05e8\u05e6\u05e3: ${bestStreak}<br>\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${(reservePct*100).toFixed(0)}% | \u05de\u05db\u05e4\u05d9\u05dc: \u00d7${multiplier.toFixed(2)}`;
+  $('finalDetail').innerHTML=`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)}<br>\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotPool)}<br>\u05e7\u05d5\u05e4\u05d4 \u05e8\u05d0\u05e9\u05d9\u05ea: ${fmt(mainPool)}<br>\u05dc\u05d5\u05e4\u05d9\u05dd: ${loopNum.toLocaleString()} | \u05e2\u05e1\u05e7\u05d0\u05d5\u05ea: ${totalTrades.toLocaleString()}<br>\u05e9\u05d9\u05d0 \u05e8\u05e6\u05e3: ${bestStreak}<br>\u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${(reservePct*100).toFixed(0)}% | \u05de\u05db\u05e4\u05d9\u05dc: \u00d7${multiplier.toFixed(2)}`;
   $('overlay').classList.add('show');
 }
 function closeOverlay(){$('overlay').classList.remove('show')}
