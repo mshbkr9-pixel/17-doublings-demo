@@ -410,16 +410,16 @@ input[type=range]::-webkit-slider-thumb:hover {
       <div class="stat-value" id="activeCap" style="color:var(--green)">$5.00</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label tip">קופת צד (סה"כ נוצר)<span class="tt">סה"כ כסף שנצבר מניצחונות בכל הלופים מתחילת הסימולציה. חלק מהכסף הזה חזר למשחק ומימן לופים חדשים.</span></div>
-      <div class="stat-value" id="sidePot" style="color:var(--gold)">$0.00</div>
+      <div class="stat-label tip">כסף זמין ללופים<span class="tt">כמה כסף יש לך עכשיו בכיס לפתוח לופים חדשים. כולל תקציב שנותר + קופות צד שחזרו מלופים שנכשלו.</span></div>
+      <div class="stat-value" id="availFunds" style="color:var(--gold)">$5,000</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label tip">תקציב נותר<span class="tt">כמה נשאר מהתקציב ההתחלתי ($5,000).</span></div>
-      <div class="stat-value" id="budgetLeft" style="color:var(--blue)">$5,000</div>
+      <div class="stat-label tip">קופת צד (נצבר)<span class="tt">סה"כ כסף שנוצר מקופות צד מכל הלופים. מספר היסטורי — חלק גדול כבר חזר למשחק ומימן לופים חדשים.</span></div>
+      <div class="stat-value" id="sidePot" style="color:var(--fg-muted)">$0.00</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label tip">כסף זמין<span class="tt">כמה כסף יש לך עכשיו לפתוח לופים חדשים. = תקציב נותר + קופות צד שחזרו מלופים שנכשלו.</span></div>
-      <div class="stat-value" id="availFunds" style="color:var(--purple)">$5,000</div>
+      <div class="stat-label tip">רווח/הפסד נטו<span class="tt">כמה הרווחת או הפסדת מתחילת הסימולציה. = (כסף זמין + הון פעיל) - תקציב התחלתי.</span></div>
+      <div class="stat-value" id="netPnl" style="color:var(--fg-dim)">$0.00</div>
     </div>
   </div>
 
@@ -562,8 +562,11 @@ function flash(s,c){const d=$('s'+s);if(d){d.className='step '+c;if(c==='fail')s
 function updStats(){
   $('activeCap').textContent=fmt(activeCap);
   $('sidePot').textContent=fmt(sidePotTotal);
-  $('budgetLeft').textContent=fmt(Math.max(0,initialBudget-budgetSpent));
   $('availFunds').textContent=fmt(available);
+  const net=available+activeCap-initialBudget;
+  const ne=$('netPnl');
+  ne.textContent=(net>=0?'+':'')+fmt(net);
+  ne.style.color=net>=0?'var(--green)':'var(--red)';
   $('currentStep').textContent=streak+'/17';
   $('currentLoop').textContent='#'+loopNum;
   $('loopBadge').textContent='\u05dc\u05d5\u05e4 #'+loopNum;
