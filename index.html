@@ -530,13 +530,14 @@ input[type=range]::-webkit-slider-thumb:hover {
           <div class="mult-info" id="multiplierInfo">מכפיל: <span class="hi">×1.80</span> | יעד סופי: <span class="hi">$136,618</span></div>
 
           <div class="forecast" id="forecastBox">
-            <div class="forecast-title">🎯 תחזית לפי ההגדרות</div>
-            <div class="forecast-row"><span>סיכוי להשלים לופ אחד</span><span class="forecast-val" id="fcOneLoop">—</span></div>
-            <div class="forecast-row"><span>לופים ממוצעים עד הצלחה</span><span class="forecast-val" id="fcAvgLoops">—</span></div>
-            <div class="forecast-row"><span>קופת צד ממוצעת ללופ</span><span class="forecast-val" id="fcAvgSp">—</span></div>
-            <div class="forecast-row"><span class="tip">מיחזור אפקטיבי<span class="tt">האם קופת הצד מחזירה יותר או פחות ממה שהלופ עולה. מעל 100% = self-funding — לא ניתן להישבר. מתחת 100% = הכסף נשחק עד שנגמר.</span></span><span class="forecast-val" id="fcRecycle">—</span></div>
-            <div class="forecast-row"><span>סיכוי לאבד את כל הכסף</span><span class="forecast-val" id="fcBust">—</span></div>
-            <div class="forecast-verdict" id="fcVerdict">הזז את הסליידרים לראות תחזית</div>
+            <div class="forecast-title">🎯 תחזית (2,000 סימולציות)</div>
+            <div class="forecast-row"><span class="tip">סיכוי להשלים לופ אחד<span class="tt">ההסתברות להשלים את כל הרצף בלופ בודד = p^target.</span></span><span class="forecast-val" id="fcOneLoop">—</span></div>
+            <div class="forecast-row"><span class="tip">סיכוי ללופ רווחי<span class="tt">באיזה שלב הלופ מתחיל להרוויח (SP גדול מהון הלופ). וכמה לופים מגיעים לשם.</span></span><span class="forecast-val" id="fcBreakEven">—</span></div>
+            <div class="forecast-row"><span class="tip">סיכוי כולל להצליח<span class="tt">המשוב הכי חשוב! לפי 2,000 סימולציות עם ההגדרות שלך, בכמה אחוז מהמקרים הגעת ליעד לפני שנגמר הכסף.</span></span><span class="forecast-val" id="fcSuccess">—</span></div>
+            <div class="forecast-row"><span class="tip">סיכוי לאבד את כל הכסף<span class="tt">באיזה אחוז מהסימולציות נגמר הכסף לפני שהגעת ליעד.</span></span><span class="forecast-val" id="fcBust">—</span></div>
+            <div class="forecast-row"><span class="tip">לופים חציוני עד הצלחה<span class="tt">מחצית מהסימולציות שהצליחו הגיעו ליעד עד מספר לופים זה.</span></span><span class="forecast-val" id="fcMedianLoops">—</span></div>
+            <div class="forecast-row"><span class="tip">רווח/הפסד חציוני<span class="tt">התוצאה הצפויה ב-50% מהמקרים (לטוב או לרע).</span></span><span class="forecast-val" id="fcMedNet">—</span></div>
+            <div class="forecast-verdict" id="fcVerdict">מחשב...</div>
           </div>
 
           <div class="field">
@@ -617,8 +618,15 @@ const fmt=(n,d=2)=>n>=1000?'$'+n.toLocaleString('en',{minimumFractionDigits:d,ma
 
 function calcTarget(){const m=multiplier,a=LOOP_START*Math.pow(m,TARGET),s=reservePct*LOOP_START*(Math.pow(m,TARGET)-1)/(m-1);return{a,s,t:a+s}}
 
-// ═══════ Dynamic Forecast ═══════
+// ═══════ Dynamic Forecast — Real Monte Carlo ═══════
+let _forecastTimer=null;
 function calcForecast(){
+  // Debounce
+  clearTimeout(_forecastTimer);
+  _forecastTimer=setTimeout(_runForecast,150);
+}
+
+function _runForecast(){
   const p=parseInt($('rateSlider').value)/100;
   const rp=parseInt($('reserveSlider').value)/100;
   const m=2-rp;
@@ -626,70 +634,93 @@ function calcForecast(){
   const tgt=parseInt($('targetSlider').value);
   const budget=parseInt($('budgetSlider').value);
 
-  // P(complete one loop) = p^target
-  const pOneLoop=Math.pow(p,tgt);
+  // Run 2000 Monte Carlo simulations
+  const SIMS=2000;
+  const MAX_LOOPS=50000; // safety cap per sim
+  let busts=0;
+  let successes=0;
+  let loopsToFirstWin=[];
+  let netResults=[];
 
-  // Expected side pot per loop attempt:
-  //   E[SP] = sum over n=1..target of P(reach n) * sp(n)
-  //   P(reach n then lose or finish at n) we just compute cumulative SP
-  //   Simpler: E[SP] = Σ(k=1..target) p^k * (rp * ls * m^(k-1))
-  //   But actually: if loop reaches step n (then fails or continues), SP from that loop = rp*ls*(m^n-1)/(m-1)
-  // Use exact formula: expected SP per loop attempt
-  let eSp=0;
+  for(let s=0;s<SIMS;s++){
+    let mainP=budget, sidePot=0, loops=0, firstWin=-1;
+    let timeout=false;
+
+    while(mainP>=ls||sidePot>=ls){
+      if(loops>=MAX_LOOPS){timeout=true;break;}
+      // open loop
+      if(mainP>=ls)mainP-=ls; else sidePot-=ls;
+      loops++;
+      let streak=0, active=ls, lSp=0;
+      while(streak<tgt){
+        if(Math.random()<p){
+          streak++;
+          const sc=active*rp;
+          lSp+=sc; sidePot+=sc;
+          active=active*2-sc;
+        } else {
+          active=0; break;
+        }
+      }
+      if(streak>=tgt){
+        // SUCCESS! Active capital goes to main pool
+        mainP+=active;
+        if(firstWin<0)firstWin=loops;
+        // keep running to measure steady state? No — count as one success
+        successes++;
+        if(firstWin>0)loopsToFirstWin.push(firstWin);
+        break; // count this sim as success and move on
+      }
+    }
+
+    if(successes<=s){
+      // This sim didn't succeed
+      busts++;
+    }
+    netResults.push(mainP+sidePot-budget);
+  }
+
+  // Statistics
+  const pBust=busts/SIMS;
+  const pSuccess=1-pBust;
+  const medianLoops=loopsToFirstWin.length?loopsToFirstWin.sort((a,b)=>a-b)[Math.floor(loopsToFirstWin.length/2)]:Infinity;
+  const avgLoops=loopsToFirstWin.length?loopsToFirstWin.reduce((a,b)=>a+b,0)/loopsToFirstWin.length:Infinity;
+
+  netResults.sort((a,b)=>a-b);
+  const medNet=netResults[Math.floor(SIMS/2)];
+
+  // Analytical P(break-even single loop) — easier intuition
+  // SP(n) >= ls when n >= some threshold. Find it.
+  let breakEvenStep=tgt+1;
   for(let n=1;n<=tgt;n++){
-    const probReachExactlyN=n<tgt?Math.pow(p,n)*(1-p):Math.pow(p,tgt); // reach n then lose (or win at target)
-    const spAtN=rp*ls*(Math.pow(m,n)-1)/(m-1);
-    eSp+=probReachExactlyN*spAtN;
+    const sp=rp*ls*(Math.pow(m,n)-1)/(m-1);
+    if(sp>=ls){breakEvenStep=n;break;}
   }
-  // Include failures at step 0 (lose immediately) — contributes 0 SP, already counted
-
-  // Effective cost per loop = ls - E[SP]
-  const effCost=ls-eSp;
-  const recyclePct=eSp/ls*100;
-
-  // Average loops to success (geometric)
-  const avgLoops=pOneLoop>0?1/pOneLoop:Infinity;
-
-  // P(bust) — probability of losing all money before hitting target
-  // If effCost <= 0 (self-funding): P(bust) ≈ 0
-  // If effCost > 0: we have budget/effCost loops to try
-  //   P(no success in N attempts) = (1-pOneLoop)^N
-  let pBust;
-  if(effCost<=0){
-    // Self-funding, never bust (but can still take forever)
-    pBust=0;
-  } else {
-    const maxLoops=budget/effCost;
-    pBust=Math.pow(1-pOneLoop,maxLoops);
-    if(!isFinite(pBust))pBust=1;
-  }
+  const pBreakEven=Math.pow(p,breakEvenStep);
 
   // Verdict
   let verdict='', vclass='';
-  if(effCost<=0&&pOneLoop>0.001){
-    verdict='✓ Self-Funding — לא ניתן להישבר';
+  if(pSuccess>=0.95){
+    verdict='✓ כמעט בטוח להצליח';
     vclass='viable';
-  } else if(effCost<=0){
-    verdict='✓ Self-Funding (אבל איטי מאוד)';
+  } else if(pSuccess>=0.7){
+    verdict='✓ סיכוי טוב להצליח';
     vclass='viable';
-  } else if(pBust<0.1){
-    verdict='✓ סביר — סיכוי הצלחה טוב';
-    vclass='viable';
-  } else if(pBust<0.5){
-    verdict='⚠ קשה — סיכון בינוני לאבד';
+  } else if(pSuccess>=0.4){
+    verdict='⚠ 50/50 — סיכון בינוני';
     vclass='hard';
-  } else if(pBust<0.95){
-    verdict='⚠ מסוכן מאוד — סביר להפסיד';
+  } else if(pSuccess>=0.1){
+    verdict='⚠ סיכוי נמוך — סכנה גבוהה לאבד';
     vclass='hard';
   } else {
-    verdict='✗ בלתי אפשרי — תאבד הכל כמעט בוודאות';
+    verdict='✗ כמעט בטוח להפסיד הכל';
     vclass='impossible';
   }
 
-  // Format helpers
   const fmtPct=(x)=>{
     if(x>=0.01)return (x*100).toFixed(1)+'%';
     if(x>=0.0001)return (x*100).toFixed(3)+'%';
+    if(x===0)return '0%';
     return x.toExponential(1);
   };
   const fmtLoops=(x)=>{
@@ -697,21 +728,25 @@ function calcForecast(){
     if(x>1e9)return x.toExponential(1);
     return Math.round(x).toLocaleString();
   };
+  const fmtMoney=(x)=>(x>=0?'+':'')+'$'+Math.round(x).toLocaleString();
 
-  $('fcOneLoop').textContent=fmtPct(pOneLoop);
-  $('fcOneLoop').className='forecast-val '+(pOneLoop>.01?'good':pOneLoop>.0001?'mid':'bad');
+  $('fcOneLoop').textContent=fmtPct(Math.pow(p,tgt));
+  $('fcOneLoop').className='forecast-val '+(Math.pow(p,tgt)>.01?'good':Math.pow(p,tgt)>.0001?'mid':'bad');
 
-  $('fcAvgLoops').textContent=fmtLoops(avgLoops);
-  $('fcAvgLoops').className='forecast-val '+(avgLoops<1000?'good':avgLoops<100000?'mid':'bad');
+  $('fcBreakEven').textContent=fmtPct(pBreakEven)+' (שלב '+breakEvenStep+'+)';
+  $('fcBreakEven').className='forecast-val '+(pBreakEven>.3?'good':pBreakEven>.1?'mid':'bad');
 
-  $('fcAvgSp').textContent='$'+eSp.toFixed(2);
-  $('fcAvgSp').className='forecast-val '+(eSp>=ls?'good':eSp>=ls*0.7?'mid':'bad');
+  $('fcSuccess').textContent=fmtPct(pSuccess);
+  $('fcSuccess').className='forecast-val '+(pSuccess>=0.7?'good':pSuccess>=0.3?'mid':'bad');
 
-  $('fcRecycle').textContent=recyclePct.toFixed(0)+'%';
-  $('fcRecycle').className='forecast-val '+(recyclePct>=100?'good':recyclePct>=70?'mid':'bad');
+  $('fcBust').textContent=fmtPct(pBust);
+  $('fcBust').className='forecast-val '+(pBust<0.3?'good':pBust<0.7?'mid':'bad');
 
-  $('fcBust').textContent=pBust<0.001?'≈0%':fmtPct(pBust);
-  $('fcBust').className='forecast-val '+(pBust<0.1?'good':pBust<0.5?'mid':'bad');
+  $('fcMedianLoops').textContent=fmtLoops(medianLoops);
+  $('fcMedianLoops').className='forecast-val '+(medianLoops<1000?'good':medianLoops<100000?'mid':'bad');
+
+  $('fcMedNet').textContent=fmtMoney(medNet);
+  $('fcMedNet').className='forecast-val '+(medNet>=0?'good':medNet>=-budget*0.5?'mid':'bad');
 
   const v=$('fcVerdict');
   v.textContent=verdict;
