@@ -469,9 +469,12 @@ input[type=range]::-webkit-slider-thumb:hover {
       <div class="card">
         <div class="card-header"><span class="card-title">הגדרות</span></div>
         <div class="card-body">
-          <div class="param"><span class="param-label tip">הון ללופ<span class="tt">כל לופ מתחיל עם $5. אם נכשל, ה-$5 אובדים אבל קופת הצד נשמרת.</span></span><span class="param-val">$5.00</span></div>
           <div class="param"><span class="param-label tip">הגדרת ניצחון<span class="tt">ניצחון = עסקה עם רווח ≥ 2× הסיכון. רווח קטן יותר = הפסד.</span></span><span class="param-val">R ≥ 2.0</span></div>
           <div style="height:10px;"></div>
+          <div class="field">
+            <div class="field-label"><span class="tip">הון התחלתי ללופ<span class="tt">כמה כסף כל לופ מתחיל איתו. $1 עד $100. ככל שגבוה יותר, היעד הסופי גבוה יותר אבל כל כישלון עולה יותר.</span></span><span class="field-val" id="loopStartDisplay">$5</span></div>
+            <input type="range" id="loopStartSlider" min="1" max="100" value="5">
+          </div>
           <div class="field">
             <div class="field-label"><span class="tip">יעד (ניצחונות רצופים)<span class="tt">כמה ניצחונות רצופים להשלמת לופ. 1-30.</span></span><span class="field-val" id="targetDisplay">17</span></div>
             <input type="range" id="targetSlider" min="1" max="30" value="17">
@@ -556,7 +559,7 @@ input[type=range]::-webkit-slider-thumb:hover {
 <div class="toast" id="toast">הועתק!</div>
 
 <script>
-const LOOP_START=5;
+let LOOP_START=5;
 let TARGET=17;
 let reservePct=.2, multiplier=1.8;
 let running=false, timerId=null, runnerRate=.55, initialBudget=5000, speed=20;
@@ -566,7 +569,7 @@ const $=id=>document.getElementById(id);
 const fmt=(n,d=2)=>n>=1000?'$'+n.toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d}):'$'+n.toFixed(d);
 
 function calcTarget(){const m=multiplier,a=LOOP_START*Math.pow(m,TARGET),s=reservePct*LOOP_START*(Math.pow(m,TARGET)-1)/(m-1);return{a,s,t:a+s}}
-function updMult(){const t=calcTarget();$('multiplierInfo').innerHTML=`\u05de\u05db\u05e4\u05d9\u05dc: <span class="hi">\u00d7${multiplier.toFixed(2)}</span> | \u05d9\u05e2\u05d3 \u05dc\u05dc\u05d5\u05e4: <span class="hi">${fmt(t.t,0)}</span>`;$('subtitleText').textContent=`$5 \u05d4\u05ea\u05d7\u05dc\u05d4 | \u05de\u05db\u05e4\u05d9\u05dc \u00d7${multiplier.toFixed(2)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3 ${(reservePct*100).toFixed(0)}% | ${TARGET} \u05e0\u05d9\u05e6\u05d7\u05d5\u05e0\u05d5\u05ea \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd \u05dc\u05d4\u05e9\u05dc\u05de\u05d4 | \u05de\u05de\u05e9\u05d9\u05da \u05d0\u05d7\u05e8\u05d9 \u05d4\u05e9\u05dc\u05de\u05d4`}
+function updMult(){const t=calcTarget();$('multiplierInfo').innerHTML=`\u05de\u05db\u05e4\u05d9\u05dc: <span class="hi">\u00d7${multiplier.toFixed(2)}</span> | \u05d9\u05e2\u05d3 \u05dc\u05dc\u05d5\u05e4: <span class="hi">${fmt(t.t,0)}</span>`;$('subtitleText').textContent=`$${LOOP_START} \u05d4\u05ea\u05d7\u05dc\u05d4 | \u05de\u05db\u05e4\u05d9\u05dc \u00d7${multiplier.toFixed(2)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3 ${(reservePct*100).toFixed(0)}% | ${TARGET} \u05e0\u05d9\u05e6\u05d7\u05d5\u05e0\u05d5\u05ea \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd \u05dc\u05d4\u05e9\u05dc\u05de\u05d4 | \u05de\u05de\u05e9\u05d9\u05da \u05d0\u05d7\u05e8\u05d9 \u05d4\u05e9\u05dc\u05de\u05d4`}
 
 function initSteps(){const b=$('stepsBar');b.innerHTML='';for(let i=1;i<=TARGET;i++){const d=document.createElement('div');d.className='step';d.textContent=i;d.id='s'+i;b.appendChild(d)}}
 function updSteps(){for(let i=1;i<=TARGET;i++){const d=$('s'+i);d.className='step';if(i<streak+1)d.className+=' done';else if(i===streak+1&&running)d.className+=' now'}}
@@ -646,6 +649,7 @@ function trade(){
 
 function startSim(){
   TARGET=parseInt($('targetSlider').value);
+  LOOP_START=parseInt($('loopStartSlider').value);
   runnerRate=parseInt($('rateSlider').value)/100;initialBudget=parseInt($('budgetSlider').value);
   reservePct=parseInt($('reserveSlider').value)/100;multiplier=2-reservePct;speed=101-parseInt($('speedSlider').value);
   mainPool=initialBudget;sidePotPool=0;activeCap=0;streak=0;bestStreak=0;loopNum=0;totalTrades=0;loopSidePot=0;completions=0;
@@ -669,6 +673,7 @@ $('budgetSlider').oninput=function(){$('budgetDisplay').textContent='$'+parseInt
 $('reserveSlider').oninput=function(){reservePct=parseInt(this.value)/100;multiplier=2-reservePct;$('reserveDisplay').textContent=this.value+'%';updMult()};
 $('speedSlider').oninput=function(){speed=101-parseInt(this.value);$('speedDisplay').textContent=speed+'ms'};
 $('targetSlider').oninput=function(){TARGET=parseInt(this.value);$('targetDisplay').textContent=this.value;document.querySelector('.page-title').textContent=`${TARGET} \u05d4\u05db\u05e4\u05dc\u05d5\u05ea \u2014 \u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d9\u05ea \u05dc\u05d5\u05e4 \u05d7\u05d9`;initSteps();updMult();updStats();};
+$('loopStartSlider').oninput=function(){LOOP_START=parseInt(this.value);$('loopStartDisplay').textContent='$'+this.value;updMult();};
 
 document.addEventListener('click',e=>{document.querySelectorAll('.tip.tapped').forEach(t=>t.classList.remove('tapped'));const t=e.target.closest('.tip');if(t){e.preventDefault();t.classList.add('tapped')}});
 
