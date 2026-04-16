@@ -275,6 +275,42 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 .mult-info .hi { color: var(--gold); font-weight: 800; font-family: var(--mono); }
 
+/* ═══════ Forecast Box ═══════ */
+.forecast {
+  padding: 14px; margin-bottom: 14px;
+  background: linear-gradient(135deg, rgba(68,138,255,.08), rgba(179,136,255,.08));
+  border: 1px solid rgba(68,138,255,.2);
+  border-radius: var(--radius-sm);
+}
+.forecast-title {
+  font-size: 0.82rem; font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--fg);
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.forecast-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 0.78rem; color: var(--fg-muted);
+  padding: 4px 0;
+}
+.forecast-val {
+  font-family: var(--mono); font-weight: 700;
+  color: var(--fg);
+}
+.forecast-val.good { color: var(--green); }
+.forecast-val.mid { color: var(--gold); }
+.forecast-val.bad { color: var(--red); }
+.forecast-verdict {
+  margin-top: 10px; padding: 8px;
+  text-align: center; border-radius: 6px;
+  font-size: 0.8rem; font-weight: 700;
+  background: var(--bg2);
+}
+.forecast-verdict.viable { background: var(--green-bg); color: var(--green); border: 1px solid rgba(0,230,118,.2); }
+.forecast-verdict.hard { background: var(--gold-bg); color: var(--gold); border: 1px solid rgba(255,193,7,.2); }
+.forecast-verdict.impossible { background: var(--red-bg); color: var(--red); border: 1px solid rgba(255,82,82,.2); }
+
 /* ═══════ Explain ═══════ */
 .explain {
   padding: 10px 14px; margin-top: 12px;
@@ -492,6 +528,17 @@ input[type=range]::-webkit-slider-thumb:hover {
             <input type="range" id="reserveSlider" min="5" max="50" value="20">
           </div>
           <div class="mult-info" id="multiplierInfo">מכפיל: <span class="hi">×1.80</span> | יעד סופי: <span class="hi">$136,618</span></div>
+
+          <div class="forecast" id="forecastBox">
+            <div class="forecast-title">🎯 תחזית לפי ההגדרות</div>
+            <div class="forecast-row"><span>סיכוי להשלים לופ אחד</span><span class="forecast-val" id="fcOneLoop">—</span></div>
+            <div class="forecast-row"><span>לופים ממוצעים עד הצלחה</span><span class="forecast-val" id="fcAvgLoops">—</span></div>
+            <div class="forecast-row"><span>קופת צד ממוצעת ללופ</span><span class="forecast-val" id="fcAvgSp">—</span></div>
+            <div class="forecast-row"><span class="tip">מיחזור אפקטיבי<span class="tt">האם קופת הצד מחזירה יותר או פחות ממה שהלופ עולה. מעל 100% = self-funding — לא ניתן להישבר. מתחת 100% = הכסף נשחק עד שנגמר.</span></span><span class="forecast-val" id="fcRecycle">—</span></div>
+            <div class="forecast-row"><span>סיכוי לאבד את כל הכסף</span><span class="forecast-val" id="fcBust">—</span></div>
+            <div class="forecast-verdict" id="fcVerdict">הזז את הסליידרים לראות תחזית</div>
+          </div>
+
           <div class="field">
             <div class="field-label"><span>מהירות</span><span class="field-val" id="speedDisplay" style="color:var(--fg-dim)">20ms</span></div>
             <input type="range" id="speedSlider" min="1" max="100" value="20">
@@ -569,6 +616,107 @@ const $=id=>document.getElementById(id);
 const fmt=(n,d=2)=>n>=1000?'$'+n.toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d}):'$'+n.toFixed(d);
 
 function calcTarget(){const m=multiplier,a=LOOP_START*Math.pow(m,TARGET),s=reservePct*LOOP_START*(Math.pow(m,TARGET)-1)/(m-1);return{a,s,t:a+s}}
+
+// ═══════ Dynamic Forecast ═══════
+function calcForecast(){
+  const p=parseInt($('rateSlider').value)/100;
+  const rp=parseInt($('reserveSlider').value)/100;
+  const m=2-rp;
+  const ls=parseInt($('loopStartSlider').value);
+  const tgt=parseInt($('targetSlider').value);
+  const budget=parseInt($('budgetSlider').value);
+
+  // P(complete one loop) = p^target
+  const pOneLoop=Math.pow(p,tgt);
+
+  // Expected side pot per loop attempt:
+  //   E[SP] = sum over n=1..target of P(reach n) * sp(n)
+  //   P(reach n then lose or finish at n) we just compute cumulative SP
+  //   Simpler: E[SP] = Σ(k=1..target) p^k * (rp * ls * m^(k-1))
+  //   But actually: if loop reaches step n (then fails or continues), SP from that loop = rp*ls*(m^n-1)/(m-1)
+  // Use exact formula: expected SP per loop attempt
+  let eSp=0;
+  for(let n=1;n<=tgt;n++){
+    const probReachExactlyN=n<tgt?Math.pow(p,n)*(1-p):Math.pow(p,tgt); // reach n then lose (or win at target)
+    const spAtN=rp*ls*(Math.pow(m,n)-1)/(m-1);
+    eSp+=probReachExactlyN*spAtN;
+  }
+  // Include failures at step 0 (lose immediately) — contributes 0 SP, already counted
+
+  // Effective cost per loop = ls - E[SP]
+  const effCost=ls-eSp;
+  const recyclePct=eSp/ls*100;
+
+  // Average loops to success (geometric)
+  const avgLoops=pOneLoop>0?1/pOneLoop:Infinity;
+
+  // P(bust) — probability of losing all money before hitting target
+  // If effCost <= 0 (self-funding): P(bust) ≈ 0
+  // If effCost > 0: we have budget/effCost loops to try
+  //   P(no success in N attempts) = (1-pOneLoop)^N
+  let pBust;
+  if(effCost<=0){
+    // Self-funding, never bust (but can still take forever)
+    pBust=0;
+  } else {
+    const maxLoops=budget/effCost;
+    pBust=Math.pow(1-pOneLoop,maxLoops);
+    if(!isFinite(pBust))pBust=1;
+  }
+
+  // Verdict
+  let verdict='', vclass='';
+  if(effCost<=0&&pOneLoop>0.001){
+    verdict='✓ Self-Funding — לא ניתן להישבר';
+    vclass='viable';
+  } else if(effCost<=0){
+    verdict='✓ Self-Funding (אבל איטי מאוד)';
+    vclass='viable';
+  } else if(pBust<0.1){
+    verdict='✓ סביר — סיכוי הצלחה טוב';
+    vclass='viable';
+  } else if(pBust<0.5){
+    verdict='⚠ קשה — סיכון בינוני לאבד';
+    vclass='hard';
+  } else if(pBust<0.95){
+    verdict='⚠ מסוכן מאוד — סביר להפסיד';
+    vclass='hard';
+  } else {
+    verdict='✗ בלתי אפשרי — תאבד הכל כמעט בוודאות';
+    vclass='impossible';
+  }
+
+  // Format helpers
+  const fmtPct=(x)=>{
+    if(x>=0.01)return (x*100).toFixed(1)+'%';
+    if(x>=0.0001)return (x*100).toFixed(3)+'%';
+    return x.toExponential(1);
+  };
+  const fmtLoops=(x)=>{
+    if(!isFinite(x))return '∞';
+    if(x>1e9)return x.toExponential(1);
+    return Math.round(x).toLocaleString();
+  };
+
+  $('fcOneLoop').textContent=fmtPct(pOneLoop);
+  $('fcOneLoop').className='forecast-val '+(pOneLoop>.01?'good':pOneLoop>.0001?'mid':'bad');
+
+  $('fcAvgLoops').textContent=fmtLoops(avgLoops);
+  $('fcAvgLoops').className='forecast-val '+(avgLoops<1000?'good':avgLoops<100000?'mid':'bad');
+
+  $('fcAvgSp').textContent='$'+eSp.toFixed(2);
+  $('fcAvgSp').className='forecast-val '+(eSp>=ls?'good':eSp>=ls*0.7?'mid':'bad');
+
+  $('fcRecycle').textContent=recyclePct.toFixed(0)+'%';
+  $('fcRecycle').className='forecast-val '+(recyclePct>=100?'good':recyclePct>=70?'mid':'bad');
+
+  $('fcBust').textContent=pBust<0.001?'≈0%':fmtPct(pBust);
+  $('fcBust').className='forecast-val '+(pBust<0.1?'good':pBust<0.5?'mid':'bad');
+
+  const v=$('fcVerdict');
+  v.textContent=verdict;
+  v.className='forecast-verdict '+vclass;
+}
 function updMult(){const t=calcTarget();$('multiplierInfo').innerHTML=`\u05de\u05db\u05e4\u05d9\u05dc: <span class="hi">\u00d7${multiplier.toFixed(2)}</span> | \u05d9\u05e2\u05d3 \u05dc\u05dc\u05d5\u05e4: <span class="hi">${fmt(t.t,0)}</span>`;$('subtitleText').textContent=`$${LOOP_START} \u05d4\u05ea\u05d7\u05dc\u05d4 | \u05de\u05db\u05e4\u05d9\u05dc \u00d7${multiplier.toFixed(2)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3 ${(reservePct*100).toFixed(0)}% | ${TARGET} \u05e0\u05d9\u05e6\u05d7\u05d5\u05e0\u05d5\u05ea \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd \u05dc\u05d4\u05e9\u05dc\u05de\u05d4 | \u05de\u05de\u05e9\u05d9\u05da \u05d0\u05d7\u05e8\u05d9 \u05d4\u05e9\u05dc\u05de\u05d4`}
 
 function initSteps(){const b=$('stepsBar');b.innerHTML='';for(let i=1;i<=TARGET;i++){const d=document.createElement('div');d.className='step';d.textContent=i;d.id='s'+i;b.appendChild(d)}}
@@ -668,16 +816,16 @@ function showDone(tv){
 }
 function closeOverlay(){$('overlay').classList.remove('show')}
 
-$('rateSlider').oninput=function(){$('rateDisplay').textContent=this.value+'%'};
-$('budgetSlider').oninput=function(){$('budgetDisplay').textContent='$'+parseInt(this.value).toLocaleString()};
-$('reserveSlider').oninput=function(){reservePct=parseInt(this.value)/100;multiplier=2-reservePct;$('reserveDisplay').textContent=this.value+'%';updMult()};
+$('rateSlider').oninput=function(){$('rateDisplay').textContent=this.value+'%';calcForecast()};
+$('budgetSlider').oninput=function(){$('budgetDisplay').textContent='$'+parseInt(this.value).toLocaleString();calcForecast()};
+$('reserveSlider').oninput=function(){reservePct=parseInt(this.value)/100;multiplier=2-reservePct;$('reserveDisplay').textContent=this.value+'%';updMult();calcForecast()};
 $('speedSlider').oninput=function(){speed=101-parseInt(this.value);$('speedDisplay').textContent=speed+'ms'};
-$('targetSlider').oninput=function(){TARGET=parseInt(this.value);$('targetDisplay').textContent=this.value;document.querySelector('.page-title').textContent=`${TARGET} \u05d4\u05db\u05e4\u05dc\u05d5\u05ea \u2014 \u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d9\u05ea \u05dc\u05d5\u05e4 \u05d7\u05d9`;initSteps();updMult();updStats();};
-$('loopStartSlider').oninput=function(){LOOP_START=parseInt(this.value);$('loopStartDisplay').textContent='$'+this.value;updMult();};
+$('targetSlider').oninput=function(){TARGET=parseInt(this.value);$('targetDisplay').textContent=this.value;document.querySelector('.page-title').textContent=`${TARGET} \u05d4\u05db\u05e4\u05dc\u05d5\u05ea \u2014 \u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d9\u05ea \u05dc\u05d5\u05e4 \u05d7\u05d9`;initSteps();updMult();updStats();calcForecast();};
+$('loopStartSlider').oninput=function(){LOOP_START=parseInt(this.value);$('loopStartDisplay').textContent='$'+this.value;updMult();calcForecast()};
 
 document.addEventListener('click',e=>{document.querySelectorAll('.tip.tapped').forEach(t=>t.classList.remove('tapped'));const t=e.target.closest('.tip');if(t){e.preventDefault();t.classList.add('tapped')}});
 
-initSteps();updStats();updMult();
+initSteps();updStats();updMult();calcForecast();
 </script>
 </body>
 </html>
