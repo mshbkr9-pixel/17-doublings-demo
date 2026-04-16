@@ -73,7 +73,7 @@ body {
 
 /* ═══════ Stats ═══════ */
 .stats-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   gap: 14px; margin-bottom: 20px;
 }
 .stat-card {
@@ -90,11 +90,13 @@ body {
   border-radius: var(--radius) var(--radius) 0 0;
 }
 .stat-card:nth-child(1)::before { background: var(--green); }
-.stat-card:nth-child(2)::before { background: var(--gold); }
-.stat-card:nth-child(3)::before { background: var(--blue); }
-.stat-card:nth-child(4)::before { background: var(--purple); }
+.stat-card:nth-child(2)::before { background: var(--blue); }
+.stat-card:nth-child(3)::before { background: var(--gold); }
+.stat-card:nth-child(4)::before { background: var(--fg); }
+.stat-card:nth-child(5)::before { background: var(--purple); }
 .stat-card:nth-child(1):hover { border-color: rgba(0,230,118,.3); box-shadow: var(--glow-green); }
-.stat-card:nth-child(2):hover { border-color: rgba(255,193,7,.3); box-shadow: var(--glow-gold); }
+.stat-card:nth-child(3):hover { border-color: rgba(255,193,7,.3); box-shadow: var(--glow-gold); }
+.stat-card:nth-child(5):hover { border-color: rgba(179,136,255,.3); box-shadow: 0 0 20px rgba(179,136,255,.15); }
 
 .stat-label { font-size: 0.78rem; font-weight: 600; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
 .stat-value {
@@ -359,6 +361,9 @@ input[type=range]::-webkit-slider-thumb:hover {
 .about-card .rd { color: var(--red); font-weight: 700; }
 
 /* ═══════ RESPONSIVE ═══════ */
+@media (max-width:1100px) {
+  .stats-grid { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width:900px) {
   .grid-main { grid-template-columns: 1fr; }
   .about-section { grid-template-columns: 1fr; }
@@ -410,7 +415,7 @@ input[type=range]::-webkit-slider-thumb:hover {
       <div class="stat-value" id="activeCap" style="color:var(--green)">$0.00</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label tip">קופה ראשית<span class="tt">התקציב ההתחלתי. משלם עבור לופים חדשים. כשנגמר — קופת הצד משתלטת.</span></div>
+      <div class="stat-label tip">קופה ראשית<span class="tt">התקציב ההתחלתי + רווחים מלופים שהושלמו. משלם עבור לופים חדשים.</span></div>
       <div class="stat-value" id="mainPool" style="color:var(--blue)">$5,000</div>
     </div>
     <div class="stat-card">
@@ -418,8 +423,12 @@ input[type=range]::-webkit-slider-thumb:hover {
       <div class="stat-value" id="sidePot" style="color:var(--gold)">$0.00</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label tip">סה"כ שלי<span class="tt">כל הכסף שיש לך עכשיו: הון פעיל + קופה ראשית + קופת צד. זה הכסף האמיתי שלך.</span></div>
+      <div class="stat-label tip">סה"כ שלי<span class="tt">כל הכסף שיש לך עכשיו: הון פעיל + קופה ראשית + קופת צד.</span></div>
       <div class="stat-value" id="totalMine" style="color:var(--fg)">$5,000</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label tip">השלמות<span class="tt">כמה פעמים הושלם הרצף עד עכשיו. כל השלמה מוסיפה את ההון הפעיל לקופה הראשית והמערכת ממשיכה.</span></div>
+      <div class="stat-value" id="completions" style="color:var(--purple)">0</div>
     </div>
   </div>
 
@@ -461,9 +470,12 @@ input[type=range]::-webkit-slider-thumb:hover {
         <div class="card-header"><span class="card-title">הגדרות</span></div>
         <div class="card-body">
           <div class="param"><span class="param-label tip">הון ללופ<span class="tt">כל לופ מתחיל עם $5. אם נכשל, ה-$5 אובדים אבל קופת הצד נשמרת.</span></span><span class="param-val">$5.00</span></div>
-          <div class="param"><span class="param-label tip">יעד<span class="tt">17 ניצחונות ברצף. כל הפסד — גם אחרי 16 — מאפס ל-0.</span></span><span class="param-val">17 רצופים</span></div>
           <div class="param"><span class="param-label tip">הגדרת ניצחון<span class="tt">ניצחון = עסקה עם רווח ≥ 2× הסיכון. רווח קטן יותר = הפסד.</span></span><span class="param-val">R ≥ 2.0</span></div>
           <div style="height:10px;"></div>
+          <div class="field">
+            <div class="field-label"><span class="tip">יעד (ניצחונות רצופים)<span class="tt">כמה ניצחונות רצופים להשלמת לופ. 1-30.</span></span><span class="field-val" id="targetDisplay">17</span></div>
+            <input type="range" id="targetSlider" min="1" max="30" value="17">
+          </div>
           <div class="field">
             <div class="field-label"><span class="tip">אחוז הצלחה<span class="tt">כמה עסקאות מצליחות. 55% = סף שהמערכת ממנה עצמה. 70%+ = מהיר.</span></span><span class="field-val" id="rateDisplay">55%</span></div>
             <input type="range" id="rateSlider" min="40" max="85" value="55">
@@ -544,16 +556,17 @@ input[type=range]::-webkit-slider-thumb:hover {
 <div class="toast" id="toast">הועתק!</div>
 
 <script>
-const TARGET=17, LOOP_START=5;
+const LOOP_START=5;
+let TARGET=17;
 let reservePct=.2, multiplier=1.8;
 let running=false, timerId=null, runnerRate=.55, initialBudget=5000, speed=20;
-let mainPool=0, sidePotPool=0, activeCap=0, streak=0, bestStreak=0, loopNum=0, totalTrades=0, loopSidePot=0;
+let mainPool=0, sidePotPool=0, activeCap=0, streak=0, bestStreak=0, loopNum=0, totalTrades=0, loopSidePot=0, completions=0;
 
 const $=id=>document.getElementById(id);
 const fmt=(n,d=2)=>n>=1000?'$'+n.toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d}):'$'+n.toFixed(d);
 
 function calcTarget(){const m=multiplier,a=LOOP_START*Math.pow(m,TARGET),s=reservePct*LOOP_START*(Math.pow(m,TARGET)-1)/(m-1);return{a,s,t:a+s}}
-function updMult(){const t=calcTarget();$('multiplierInfo').innerHTML=`\u05de\u05db\u05e4\u05d9\u05dc: <span class="hi">\u00d7${multiplier.toFixed(2)}</span> | \u05d9\u05e2\u05d3 \u05e1\u05d5\u05e4\u05d9: <span class="hi">${fmt(t.t,0)}</span>`;$('subtitleText').textContent=`$5 \u05d4\u05ea\u05d7\u05dc\u05d4 | \u05de\u05db\u05e4\u05d9\u05dc \u00d7${multiplier.toFixed(2)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3 ${(reservePct*100).toFixed(0)}% | 17 \u05e0\u05d9\u05e6\u05d7\u05d5\u05e0\u05d5\u05ea \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd \u05dc\u05d4\u05e9\u05dc\u05de\u05d4`}
+function updMult(){const t=calcTarget();$('multiplierInfo').innerHTML=`\u05de\u05db\u05e4\u05d9\u05dc: <span class="hi">\u00d7${multiplier.toFixed(2)}</span> | \u05d9\u05e2\u05d3 \u05dc\u05dc\u05d5\u05e4: <span class="hi">${fmt(t.t,0)}</span>`;$('subtitleText').textContent=`$5 \u05d4\u05ea\u05d7\u05dc\u05d4 | \u05de\u05db\u05e4\u05d9\u05dc \u00d7${multiplier.toFixed(2)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3 ${(reservePct*100).toFixed(0)}% | ${TARGET} \u05e0\u05d9\u05e6\u05d7\u05d5\u05e0\u05d5\u05ea \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd \u05dc\u05d4\u05e9\u05dc\u05de\u05d4 | \u05de\u05de\u05e9\u05d9\u05da \u05d0\u05d7\u05e8\u05d9 \u05d4\u05e9\u05dc\u05de\u05d4`}
 
 function initSteps(){const b=$('stepsBar');b.innerHTML='';for(let i=1;i<=TARGET;i++){const d=document.createElement('div');d.className='step';d.textContent=i;d.id='s'+i;b.appendChild(d)}}
 function updSteps(){for(let i=1;i<=TARGET;i++){const d=$('s'+i);d.className='step';if(i<streak+1)d.className+=' done';else if(i===streak+1&&running)d.className+=' now'}}
@@ -567,7 +580,8 @@ function updStats(){
   const te=$('totalMine');
   te.textContent=fmt(total);
   te.style.color=total>=initialBudget?'var(--green)':'var(--red)';
-  $('currentStep').textContent=streak+'/17';
+  $('completions').textContent=completions.toLocaleString();
+  $('currentStep').textContent=streak+'/'+TARGET;
   $('currentLoop').textContent='#'+loopNum;
   $('loopBadge').textContent='\u05dc\u05d5\u05e4 #'+loopNum;
   $('totalTrades').textContent=totalTrades.toLocaleString();
@@ -604,12 +618,18 @@ function trade(){
     activeCap=na;if(streak>bestStreak)bestStreak=streak;
     flash(streak,'done');updSteps();updStats();
     if(streak>=TARGET){
-      running=false;clearTimeout(timerId);
-      const tv=activeCap+mainPool+sidePotPool;
-      logH(`\u05dc\u05d5\u05e4 #${loopNum}: \u05d4\u05d5\u05e9\u05dc\u05dd! 17/17 | ${fmt(tv)}`,'#ffc107');
-      log(`\u05dc\u05d5\u05e4 #${loopNum} \u05d4\u05d5\u05e9\u05dc\u05dd! 17 \u05e0\u05d9\u05e6\u05d7\u05d5\u05e0\u05d5\u05ea \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd!`,'gold');
-      log(`\u05d4\u05d5\u05df \u05e4\u05e2\u05d9\u05dc: ${fmt(activeCap)} | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(sidePotPool)} | \u05e8\u05d0\u05e9\u05d9\u05ea: ${fmt(mainPool)} | \u05e1\u05d4"\u05db: ${fmt(tv)}`,'gold');
-      showDone(tv);$('btnStart').style.display='';$('btnStop').style.display='none';return;
+      // Loop completed! Add active capital to main pool and keep running
+      completions++;
+      const won=activeCap;
+      mainPool+=won;
+      logH(`\u05dc\u05d5\u05e4 #${loopNum}: \u05d4\u05d5\u05e9\u05dc\u05dd! ${TARGET}/${TARGET} | +${fmt(won)} \u05dc\u05e8\u05d0\u05e9\u05d9\u05ea`,'#ffc107');
+      log(`\u2605 \u05dc\u05d5\u05e4 #${loopNum} \u05d4\u05d5\u05e9\u05dc\u05dd! ${TARGET} \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd! +${fmt(won)} \u05e0\u05db\u05e0\u05e1 \u05dc\u05e7\u05d5\u05e4\u05d4 \u05e8\u05d0\u05e9\u05d9\u05ea (\u05d4\u05e9\u05dc\u05de\u05d4 #${completions})`,'gold');
+      toast(`\u2605 \u05d4\u05e9\u05dc\u05de\u05d4 #${completions}! +${fmt(won)}`);
+      streak=0;activeCap=0;loopSidePot=0;
+      updSteps();updStats();
+      // Continue with new loop
+      setTimeout(()=>{if(!running)return;newLoop();updStats();timerId=setTimeout(trade,speed)},Math.min(speed*3,300));
+      return;
     }
     timerId=setTimeout(trade,speed);
   } else {
@@ -625,12 +645,13 @@ function trade(){
 }
 
 function startSim(){
+  TARGET=parseInt($('targetSlider').value);
   runnerRate=parseInt($('rateSlider').value)/100;initialBudget=parseInt($('budgetSlider').value);
   reservePct=parseInt($('reserveSlider').value)/100;multiplier=2-reservePct;speed=101-parseInt($('speedSlider').value);
-  mainPool=initialBudget;sidePotPool=0;activeCap=0;streak=0;bestStreak=0;loopNum=0;totalTrades=0;loopSidePot=0;
+  mainPool=initialBudget;sidePotPool=0;activeCap=0;streak=0;bestStreak=0;loopNum=0;totalTrades=0;loopSidePot=0;completions=0;
   $('tradeLog').innerHTML='';$('loopHistory').innerHTML='';initSteps();updMult();
   running=true;$('btnStart').style.display='none';$('btnStop').style.display='';
-  log(`\u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d4 \u05d4\u05ea\u05d7\u05d9\u05dc\u05d4 | \u05d4\u05e6\u05dc\u05d7\u05d4: ${(runnerRate*100).toFixed(0)}% | \u05ea\u05e7\u05e6\u05d9\u05d1: ${fmt(initialBudget)} | \u05e7"\u05e6: ${(reservePct*100).toFixed(0)}%`,'info');
+  log(`\u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d4 \u05d4\u05ea\u05d7\u05d9\u05dc\u05d4 | \u05d9\u05e2\u05d3: ${TARGET} \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd | \u05d4\u05e6\u05dc\u05d7\u05d4: ${(runnerRate*100).toFixed(0)}% | \u05ea\u05e7\u05e6\u05d9\u05d1: ${fmt(initialBudget)} | \u05e7"\u05e6: ${(reservePct*100).toFixed(0)}%`,'info');
   newLoop();updStats();timerId=setTimeout(trade,speed);
 }
 
@@ -647,6 +668,7 @@ $('rateSlider').oninput=function(){$('rateDisplay').textContent=this.value+'%'};
 $('budgetSlider').oninput=function(){$('budgetDisplay').textContent='$'+parseInt(this.value).toLocaleString()};
 $('reserveSlider').oninput=function(){reservePct=parseInt(this.value)/100;multiplier=2-reservePct;$('reserveDisplay').textContent=this.value+'%';updMult()};
 $('speedSlider').oninput=function(){speed=101-parseInt(this.value);$('speedDisplay').textContent=speed+'ms'};
+$('targetSlider').oninput=function(){TARGET=parseInt(this.value);$('targetDisplay').textContent=this.value;document.querySelector('.page-title').textContent=`${TARGET} \u05d4\u05db\u05e4\u05dc\u05d5\u05ea \u2014 \u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d9\u05ea \u05dc\u05d5\u05e4 \u05d7\u05d9`;initSteps();updMult();updStats();};
 
 document.addEventListener('click',e=>{document.querySelectorAll('.tip.tapped').forEach(t=>t.classList.remove('tapped'));const t=e.target.closest('.tip');if(t){e.preventDefault();t.classList.add('tapped')}});
 
