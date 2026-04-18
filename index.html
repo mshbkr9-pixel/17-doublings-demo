@@ -599,51 +599,18 @@ input[type=range]::-webkit-slider-thumb:hover {
         </div>
       </div>
 
-      <!-- ζ-Field 3D Surface + Line Chart -->
+      <!-- Money Chart — Single Panel -->
       <div class="card quant-chart">
         <div class="card-header">
-          <span class="card-title">ζ-Field · Money Dynamics</span>
-          <span class="mono-label" style="color:var(--fg-dim)" id="chartBadge">LATENT SURFACE</span>
+          <span class="card-title">Money · Live Chart</span>
+          <span class="mono-label" style="color:var(--fg-dim)" id="barStats">—</span>
         </div>
         <div class="card-body" style="padding: 14px;">
-          <div class="chart-title-latex">ζ-Field models latent capital behavior beyond static stochastic frame.</div>
-          <div style="position:relative; margin-top:8px;">
-            <canvas id="chart3d" style="width:100%; height:280px; display:block;"></canvas>
-            <div class="colorbar-wrap">
-              <div class="colorbar-label mono-label">CAPITAL</div>
-              <div class="colorbar-strip"></div>
-              <div class="colorbar-ticks">
-                <span class="mono-label" id="cbMax">MAX</span>
-                <span class="mono-label">·</span>
-                <span class="mono-label">·</span>
-                <span class="mono-label">·</span>
-                <span class="mono-label">0</span>
-              </div>
-            </div>
-          </div>
-          <div class="chart-divider"></div>
-          <canvas id="chartLine" style="width:100%; height:220px; display:block; margin-top:4px;"></canvas>
+          <canvas id="chartLine" style="width:100%; height:280px; display:block;"></canvas>
           <div class="chart-legend-inline" id="lineLegend">
             <span id="legMain" style="color:#448aff;">MAIN POOL —</span>
             <span id="legSide" style="color:#ff4081;">SIDE POT —</span>
           </div>
-        </div>
-      </div>
-
-      <!-- Side Pot Bars (Molecular-style) -->
-      <div class="card quant-chart">
-        <div class="card-header">
-          <span class="card-title">Side Pot · Residue per Loop</span>
-          <span class="mono-label" style="color:var(--fg-dim)" id="barStats">—</span>
-        </div>
-        <div class="card-body" style="padding: 14px;">
-          <div class="flex-gradient-row">
-            <span class="mono-label" style="color:var(--fg-dim)">LOSS</span>
-            <div class="flex-gradient-strip"></div>
-            <span class="mono-label" style="color:var(--fg)">PROFIT</span>
-          </div>
-          <canvas id="chartBars" style="width:100%; height:170px; display:block; margin-top:6px;"></canvas>
-          <div class="bar-axis-label mono-label">SIDE POT ($) · LAST LOOPS →</div>
         </div>
       </div>
 
@@ -958,8 +925,8 @@ function renderLoop(){
 }
 requestAnimationFrame(renderLoop);
 
-// ═══════ ζ-Field Quant-style Charts ═══════
-let loopSidePotHistory=[]; // {loop, sp, failed_at}
+// ═══════ Simple 2-Line Money Chart ═══════
+let loopSidePotHistory=[];
 
 function setupCanvas(c){
   const dpr=window.devicePixelRatio||1;
@@ -969,205 +936,9 @@ function setupCanvas(c){
   return {ctx, w, h};
 }
 
-// Color gradient: blue → cyan → pink (like Citadel)
-function gradColor(t){
-  // t in [0,1]
-  if(t<0.33){
-    // dark blue → cyan
-    const k=t/0.33;
-    const r=Math.round(10+k*(0*(1-k)+72*k));
-    const g=Math.round(25+k*160);
-    const b=Math.round(41+k*180);
-    return `rgb(${r},${g},${b})`;
-  } else if(t<0.66){
-    // cyan → light cyan/teal
-    const k=(t-0.33)/0.33;
-    return `rgb(${Math.round(72+k*0)},${Math.round(185+k*20)},${Math.round(221+k*-40)})`;
-  } else {
-    // cyan → pink/magenta
-    const k=(t-0.66)/0.34;
-    const r=Math.round(72+k*(255-72));
-    const g=Math.round(205+k*(64-205));
-    const b=Math.round(181+k*(129-181));
-    return `rgb(${r},${g},${b})`;
-  }
-}
-
-// Citadel-style color ramp: deep navy → blue → cyan → pink
-function fieldColor(t){
-  t=Math.max(0,Math.min(1,t));
-  const stops=[
-    {t:0.00, r:10,  g:14,  b:26},
-    {t:0.15, r:13,  g:71,  b:161},
-    {t:0.30, r:25,  g:118, b:210},
-    {t:0.50, r:0,   g:180, b:216},
-    {t:0.65, r:77,  g:208, b:225},
-    {t:0.85, r:233, g:30,  b:99},
-    {t:1.00, r:255, g:64,  b:129}
-  ];
-  for(let i=1;i<stops.length;i++){
-    if(t<=stops[i].t){
-      const a=stops[i-1],b=stops[i];
-      const k=(t-a.t)/(b.t-a.t);
-      return `rgb(${Math.round(a.r+(b.r-a.r)*k)},${Math.round(a.g+(b.g-a.g)*k)},${Math.round(a.b+(b.b-a.b)*k)})`;
-    }
-  }
-  return `rgb(255,64,129)`;
-}
-
-// ═══════ Chart 1: 3D Mesh Surface + Line Chart ═══════
-let _surfaceTime=0;
-function drawChart(){
-  _surfaceTime+=0.02;
-  requestChartDraw();
-}
-
-function drawSurface(){
-  const c=$('chart3d'); if(!c)return;
-  const {ctx,w,h}=setupCanvas(c);
-
-  // Black
-  ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
-
-  // Stars
-  ctx.fillStyle='rgba(255,255,255,.35)';
-  for(let i=0;i<60;i++){
-    const x=(i*131)%w;
-    const y=(i*79)%h;
-    ctx.fillRect(x,y,1,1);
-  }
-
-  // Parameters reflect current simulation state
-  const total=activeCap+mainPool+sidePotPool;
-  const ratio=initialBudget>0?total/initialBudget:1;
-  const amp=Math.min(1.3, 0.3+ratio*0.4+(streak/Math.max(TARGET,17))*0.5);
-  const t=_surfaceTime+(streak/10);
-
-  // 3D mesh surface — generate grid of points with height function
-  // Surface center position
-  const cx=w*0.5;
-  const cy=h*0.55;
-  const surfScale=Math.min(w,h)*0.35;
-
-  // Isometric projection angles
-  const angleX=Math.PI*0.28; // tilt
-  const cosX=Math.cos(angleX), sinX=Math.sin(angleX);
-  const angleY=Math.PI*0.0;
-  const cosY=Math.cos(angleY), sinY=Math.sin(angleY);
-
-  // Generate grid
-  const N=36; // grid resolution
-  const pts=[]; // projected points with color
-  for(let i=0;i<=N;i++){
-    pts[i]=[];
-    for(let j=0;j<=N;j++){
-      const u=(i/N-0.5)*2; // -1..1
-      const v=(j/N-0.5)*2;
-      const r=Math.sqrt(u*u+v*v);
-      const theta=Math.atan2(v,u);
-
-      // Height function — like a "gravitational well" with ripples
-      let z=0;
-      z+=amp*Math.exp(-r*r*0.8)*Math.sin(t+r*3);
-      z+=amp*0.3*Math.exp(-r*r*2)*Math.cos(t*1.3+theta*3);
-      z-=amp*0.5*Math.exp(-r*r*3); // central dip (well)
-
-      // World coords
-      const wx=u*surfScale;
-      const wy=v*surfScale;
-      const wz=z*surfScale*0.6;
-
-      // Project (simple isometric)
-      const px=cx + wx*cosY + wy*sinY;
-      const py=cy - (wx*sinY - wy*cosY)*sinX - wz*cosX;
-
-      // Color by height (z value)
-      const cnorm=(z+amp)/(amp*2);
-      pts[i][j]={x:px, y:py, z:wz, color:fieldColor(cnorm), cnorm};
-    }
-  }
-
-  // Draw mesh as triangle strips (back to front for correct occlusion)
-  // Sort by average Z (painter's algorithm)
-  const tris=[];
-  for(let i=0;i<N;i++){
-    for(let j=0;j<N;j++){
-      const a=pts[i][j], b=pts[i+1][j], c=pts[i][j+1], d=pts[i+1][j+1];
-      tris.push({pts:[a,b,d], z:(a.z+b.z+d.z)/3, colorT:(a.cnorm+b.cnorm+d.cnorm)/3});
-      tris.push({pts:[a,d,c], z:(a.z+d.z+c.z)/3, colorT:(a.cnorm+d.cnorm+c.cnorm)/3});
-    }
-  }
-  tris.sort((a,b)=>a.z-b.z);
-
-  for(const tr of tris){
-    ctx.fillStyle=fieldColor(tr.colorT);
-    ctx.globalAlpha=0.85;
-    ctx.beginPath();
-    ctx.moveTo(tr.pts[0].x, tr.pts[0].y);
-    ctx.lineTo(tr.pts[1].x, tr.pts[1].y);
-    ctx.lineTo(tr.pts[2].x, tr.pts[2].y);
-    ctx.closePath();
-    ctx.fill();
-    // Mesh edge
-    ctx.strokeStyle='rgba(255,255,255,.04)';
-    ctx.lineWidth=0.4;
-    ctx.stroke();
-  }
-  ctx.globalAlpha=1;
-
-  // Radial grid on floor
-  ctx.strokeStyle='rgba(100,140,200,.2)';
-  ctx.setLineDash([2,3]);
-  ctx.lineWidth=0.8;
-  const floorY=cy+surfScale*sinX*0.8;
-  for(let r=0;r<=4;r++){
-    const rr=surfScale*(r/4)*0.9;
-    ctx.beginPath();
-    ctx.ellipse(cx, floorY, rr, rr*sinX*0.5, 0, 0, Math.PI*2);
-    ctx.stroke();
-  }
-  for(let a=0;a<8;a++){
-    const ang=a*Math.PI/4;
-    const rrx=surfScale*0.9;
-    ctx.beginPath();
-    ctx.moveTo(cx, floorY);
-    ctx.lineTo(cx+Math.cos(ang)*rrx, floorY+Math.sin(ang)*rrx*sinX*0.5);
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-
-  // Bright dots for events (completions, best streak)
-  ctx.fillStyle='#fff';
-  ctx.shadowBlur=10; ctx.shadowColor='#fff';
-  for(let i=0;i<Math.min(completions,6);i++){
-    const a=(i*Math.PI*2/6)+t*0.2;
-    const rr=surfScale*0.35;
-    ctx.beginPath();
-    ctx.arc(cx+Math.cos(a)*rr, cy-surfScale*0.15+Math.sin(a)*rr*0.4, 3, 0, Math.PI*2);
-    ctx.fill();
-  }
-  ctx.shadowBlur=0;
-
-  // Axis labels (like Ф(t), Ф(t-1))
-  ctx.fillStyle='rgba(120,140,170,.6)';
-  ctx.font='400 9px "Roboto Mono", monospace';
-  ctx.textAlign='center';
-  ctx.fillText('Φ(t)', cx+surfScale*1.05, floorY+18);
-  ctx.fillText('Φ(t-1)', cx-surfScale*1.05, floorY+18);
-
-  ctx.save();
-  ctx.translate(20, cy);
-  ctx.rotate(-Math.PI/2);
-  ctx.fillStyle='rgba(120,140,170,.6)';
-  ctx.font='400 9px "Roboto Mono", monospace';
-  ctx.textAlign='center';
-  ctx.fillText('ζ-DENSITY', 0, 0);
-  ctx.restore();
-
-  // Update colorbar max
-  const maxTotal=Math.max(initialBudget, ...history.map(p=>p.total));
-  $('cbMax').textContent=maxTotal>=1000?'$'+(maxTotal/1000).toFixed(0)+'K':'$'+maxTotal.toFixed(0);
-}
+function drawChart(){requestChartDraw();}
+function drawSurface(){} // stub (no longer used)
+function drawBars(){} // stub (no longer used)
 
 function drawLine(){
   const c=$('chartLine'); if(!c)return;
@@ -1315,114 +1086,7 @@ function drawLine(){
   $('legSide').textContent='SIDE POT +$'+Math.round(last.side).toLocaleString()+' ▲ +'+sidePct.toFixed(1)+'%';
 }
 
-// ═══════ Bar Chart — Molecular Dynamics Style ═══════
-function drawBars(){
-  const c=$('chartBars'); if(!c)return;
-  const {ctx,w,h}=setupCanvas(c);
-  ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
-
-  const padL=44, padR=14, padT=10, padB=22;
-  const plotW=w-padL-padR, plotH=h-padT-padB;
-
-  if(loopSidePotHistory.length===0){
-    ctx.fillStyle='#3a4a66';
-    ctx.font='400 10px "Roboto Mono", monospace';
-    ctx.textAlign='center';
-    ctx.fillText('NO LOOPS YET', w/2, h/2);
-    return;
-  }
-
-  const recent=loopSidePotHistory.slice(-120);
-  const maxSp=Math.max(...recent.map(x=>x.sp), LOOP_START*1.2);
-  const avg=recent.reduce((a,b)=>a+b.sp,0)/recent.length;
-  const profitable=recent.filter(r=>r.sp>=LOOP_START).length;
-  $('barStats').textContent='AVG $'+avg.toFixed(2)+' · PROFIT '+((profitable/recent.length)*100).toFixed(0)+'%';
-
-  // Y axis
-  ctx.fillStyle='#5a6a88';
-  ctx.font='400 9px "Roboto Mono", monospace';
-  ctx.textAlign='right';
-  for(let i=0;i<=3;i++){
-    const val=maxSp*(1-i/3);
-    const y=padT+plotH*(i/3);
-    ctx.fillText(val>=1000?(val/1000).toFixed(1)+'K':val.toFixed(0), padL-6, y+3);
-    ctx.strokeStyle='rgba(90,110,140,.06)';
-    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+plotW,y); ctx.stroke();
-  }
-
-  // Loop start reference — the break-even line
-  const lsY=padT+plotH-(LOOP_START/maxSp)*plotH;
-  ctx.strokeStyle='rgba(255,255,255,.25)';
-  ctx.setLineDash([3,3]);
-  ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(padL,lsY); ctx.lineTo(padL+plotW,lsY); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle='rgba(255,255,255,.5)';
-  ctx.font='400 8px "Roboto Mono", monospace';
-  ctx.textAlign='left';
-  ctx.fillText('BREAK-EVEN', padL+plotW-54, lsY-3);
-
-  // Molecular-style bars: cyan body, white top
-  const bw=plotW/recent.length;
-  for(let i=0;i<recent.length;i++){
-    const d=recent[i];
-    const hVal=Math.max(1,(d.sp/maxSp)*plotH);
-    const x=padL+i*bw+bw*0.05;
-    const y=padT+plotH-hVal;
-    const intensity=Math.min(1, d.sp/(LOOP_START*3));
-
-    // Cyan-to-white gradient per bar
-    const g=ctx.createLinearGradient(0, y, 0, padT+plotH);
-    const topColor=`rgb(${Math.round(100+intensity*155)},${Math.round(220+intensity*35)},${Math.round(235+intensity*20)})`;
-    const midColor='rgb(72,202,228)';
-    const botColor='rgb(13,71,100)';
-    g.addColorStop(0, topColor);
-    g.addColorStop(0.5, midColor);
-    g.addColorStop(1, botColor);
-    ctx.fillStyle=g;
-    ctx.fillRect(x, y, bw*0.9, hVal);
-
-    // Top cap (bright)
-    ctx.fillStyle='rgba(255,255,255,.9)';
-    ctx.shadowBlur=4;
-    ctx.shadowColor='#4dd0e1';
-    ctx.fillRect(x, y, bw*0.9, Math.min(2, hVal));
-    ctx.shadowBlur=0;
-
-    // Highlight profitable bars with pink top
-    if(d.sp>=LOOP_START*2){
-      ctx.fillStyle='#ff4081';
-      ctx.shadowBlur=8; ctx.shadowColor='#ff4081';
-      ctx.fillRect(x, y, bw*0.9, 1.5);
-      ctx.shadowBlur=0;
-    }
-  }
-
-  // X axis
-  ctx.strokeStyle='rgba(120,140,170,.3)';
-  ctx.beginPath(); ctx.moveTo(padL,padT+plotH); ctx.lineTo(padL+plotW,padT+plotH); ctx.stroke();
-
-  ctx.fillStyle='#5a6a88';
-  ctx.font='400 9px "Roboto Mono", monospace';
-  ctx.textAlign='left';
-  ctx.fillText('0', padL-6, padT+plotH+12);
-  ctx.textAlign='right';
-  ctx.fillText(''+recent.length, padL+plotW, padT+plotH+12);
-}
-
-window.addEventListener('resize', ()=>{drawChart();drawBars();});
-
-// Continuous animation for 3D surface
-let _animFrame=null;
-function startAnimation(){
-  if(_animFrame)return;
-  const tick=()=>{drawSurface(); _animFrame=requestAnimationFrame(tick);};
-  _animFrame=requestAnimationFrame(tick);
-}
-function stopAnimation(){
-  if(_animFrame){cancelAnimationFrame(_animFrame); _animFrame=null;}
-}
-startAnimation();
+window.addEventListener('resize', ()=>{requestChartDraw();});
 
 function log(m,c='info'){const d=$('tradeLog'),l=document.createElement('div');l.className='log-line '+c;l.textContent=m;d.appendChild(l);d.scrollTop=d.scrollHeight;while(d.children.length>500)d.removeChild(d.firstChild)}
 function logH(m,col='#8494b2'){const d=$('loopHistory'),l=document.createElement('div');l.className='hist-line';l.style.color=col;l.textContent=m;d.insertBefore(l,d.firstChild);while(d.children.length>200)d.removeChild(d.lastChild)}
