@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>17 הכפלות — סימולציית לופ חי</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:          #04060e;
@@ -41,19 +41,30 @@
   --glow-red:    0 0 20px rgba(255,82,82,.15);
 
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 body {
   font-family: var(--font);
+  font-weight: 300;
+  font-size: 14px;
+  line-height: 1.625;
   background: var(--bg);
   background-image: radial-gradient(ellipse at 50% 0%, rgba(68,138,255,.04) 0%, transparent 60%);
   color: var(--fg);
-  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  letter-spacing: 0;
+}
+.mono-label {
+  font-family: var(--mono); font-weight: 400; font-size: 10px;
+  line-height: 15px; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.mono-title {
+  font-family: var(--mono); font-weight: 400; font-size: 12px;
+  line-height: 18px; letter-spacing: 0.15em; text-transform: uppercase;
 }
 
 /* ═══════ Page ═══════ */
@@ -65,11 +76,19 @@ body {
   border-bottom: 1px solid var(--border);
 }
 .page-title {
-  font-size: 1.75rem; font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--gold);
+  font-family: var(--font);
+  font-size: clamp(44px, 8vw, 96px);
+  font-weight: 200;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+  color: var(--fg);
 }
-.page-desc { color: var(--fg-muted); font-size: 0.85rem; margin-top: 6px; letter-spacing: 0.02em; }
+.page-title em { font-style: normal; color: var(--gold); font-weight: 300; }
+.page-desc {
+  font-family: var(--mono); font-weight: 400; font-size: 11px;
+  line-height: 18px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--fg-dim); margin-top: 18px;
+}
 
 /* ═══════ Stats ═══════ */
 .stats-grid {
@@ -98,10 +117,14 @@ body {
 .stat-card:nth-child(3):hover { border-color: rgba(255,193,7,.3); box-shadow: var(--glow-gold); }
 .stat-card:nth-child(5):hover { border-color: rgba(179,136,255,.3); box-shadow: 0 0 20px rgba(179,136,255,.15); }
 
-.stat-label { font-size: 0.78rem; font-weight: 600; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+.stat-label {
+  font-family: var(--mono); font-weight: 400; font-size: 10px;
+  line-height: 15px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--fg-dim); margin-bottom: 10px;
+}
 .stat-value {
-  font-size: 1.6rem; font-weight: 800; font-family: var(--mono);
-  letter-spacing: -0.03em;
+  font-family: var(--font); font-size: 28px; font-weight: 300;
+  line-height: 1.1; letter-spacing: -0.03em;
   transition: color .3s;
 }
 
@@ -125,7 +148,11 @@ body {
   display: flex; justify-content: space-between; align-items: center;
   border-bottom: 1px solid var(--border);
 }
-.card-title { font-size: 0.85rem; font-weight: 600; color: var(--fg); text-transform: uppercase; letter-spacing: .04em; }
+.card-title {
+  font-family: var(--mono); font-weight: 400; font-size: 11px;
+  line-height: 18px; letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--fg);
+}
 .card-body { padding: 16px 18px; }
 
 /* ═══════ Badge ═══════ */
@@ -169,8 +196,14 @@ body {
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: 10px 4px;
 }
-.mini-stat .ms-label { font-size: 0.68rem; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; }
-.mini-stat .ms-val { font-size: 1.05rem; font-weight: 700; font-family: var(--mono); margin-top: 2px; color: var(--fg); }
+.mini-stat .ms-label {
+  font-family: var(--mono); font-weight: 400; font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-dim);
+}
+.mini-stat .ms-val {
+  font-size: 18px; font-weight: 300; font-family: var(--font);
+  margin-top: 4px; color: var(--fg); letter-spacing: -0.02em;
+}
 
 /* ═══════ Log ═══════ */
 .log-scroll {
@@ -283,10 +316,11 @@ input[type=range]::-webkit-slider-thumb:hover {
   border-radius: var(--radius-sm);
 }
 .forecast-title {
-  font-size: 0.82rem; font-weight: 700;
-  margin-bottom: 10px;
+  font-family: var(--mono); font-weight: 400; font-size: 11px;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  margin-bottom: 12px;
   color: var(--fg);
-  padding-bottom: 8px;
+  padding-bottom: 10px;
   border-bottom: 1px solid rgba(255,255,255,.06);
 }
 .forecast-row {
@@ -382,8 +416,11 @@ input[type=range]::-webkit-slider-thumb:hover {
   background: linear-gradient(135deg, var(--card) 0%, var(--card-alt) 100%);
 }
 .about-card h3 {
-  font-size: 0.92rem; font-weight: 700; margin-bottom: 10px;
+  font-family: var(--mono); font-weight: 500; font-size: 11px;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  margin-bottom: 14px;
   display: flex; align-items: center; gap: 8px;
+  color: var(--fg);
 }
 .about-card h3::before {
   content: ''; display: inline-block; width: 3px; height: 16px;
@@ -440,9 +477,9 @@ input[type=range]::-webkit-slider-thumb:hover {
 <body>
 <div class="page">
 
-  <div class="page-header">
-    <div class="page-title">17 הכפלות — סימולציית לופ חי</div>
-    <div class="page-desc" id="subtitleText">$5 התחלה | מכפיל ×1.80 | קופת צד 20% | 17 ניצחונות רצופים להשלמה</div>
+  <div class="page-header" style="text-align:right; padding-bottom:30px; margin-bottom:36px;">
+    <div class="page-title"><em id="titleNum">17</em> הכפלות</div>
+    <div class="page-desc" id="subtitleText">$5 • ×1.80 • 20% SIDE POT • 17 CONSECUTIVE WINS</div>
   </div>
 
   <div class="stats-grid">
@@ -487,8 +524,25 @@ input[type=range]::-webkit-slider-thumb:hover {
         </div>
       </div>
 
+      <!-- 3D Chart -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Money · 3D</span>
+          <span class="mono-label" id="chartLegend" style="color:var(--fg-dim)">live</span>
+        </div>
+        <div class="card-body" style="padding: 10px 12px;">
+          <canvas id="chart3d" width="700" height="300" style="width:100%; height:300px; display:block;"></canvas>
+          <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--green);border-radius:2px;"></span><span class="mono-label">Total</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--blue);border-radius:2px;"></span><span class="mono-label">Main Pool</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--gold);border-radius:2px;"></span><span class="mono-label">Side Pot</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--fg);border-radius:2px;opacity:.4;"></span><span class="mono-label">Budget</span></div>
+          </div>
+        </div>
+      </div>
+
       <div class="card" style="flex:1;">
-        <div class="card-header"><span class="card-title">יומן עסקאות</span></div>
+        <div class="card-header"><span class="card-title">Trade Log</span></div>
         <div class="card-body">
           <div class="log-scroll" id="tradeLog"></div>
           <div class="explain">
@@ -612,6 +666,7 @@ let TARGET=17;
 let reservePct=.2, multiplier=1.8;
 let running=false, timerId=null, runnerRate=.55, initialBudget=5000, speed=20;
 let mainPool=0, sidePotPool=0, activeCap=0, streak=0, bestStreak=0, loopNum=0, totalTrades=0, loopSidePot=0, completions=0;
+let history=[]; let _lastPush=0;
 
 const $=id=>document.getElementById(id);
 const fmt=(n,d=2)=>n>=1000?'$'+n.toLocaleString('en',{minimumFractionDigits:d,maximumFractionDigits:d}):'$'+n.toFixed(d);
@@ -772,7 +827,142 @@ function updStats(){
   $('loopBadge').textContent='\u05dc\u05d5\u05e4 #'+loopNum;
   $('totalTrades').textContent=totalTrades.toLocaleString();
   $('bestStreak').textContent=bestStreak;
+  // track history for 3D chart
+  if(totalTrades-_lastPush>=1||history.length===0){
+    _lastPush=totalTrades;
+    history.push({t:totalTrades, total:total, main:mainPool, side:sidePotPool});
+    if(history.length>500){history.shift();}
+    drawChart();
+  }
 }
+
+// ═══════ 3D Isometric Chart ═══════
+function drawChart(){
+  const c=$('chart3d'); if(!c)return;
+  const dpr=window.devicePixelRatio||1;
+  const w=c.clientWidth, h=c.clientHeight;
+  if(c.width!==w*dpr){c.width=w*dpr; c.height=h*dpr;}
+  const ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+
+  const padL=50, padR=20, padT=20, padB=30;
+  const plotW=w-padL-padR, plotH=h-padT-padB;
+  const depth=40; // 3D depth
+
+  if(history.length<2){
+    ctx.fillStyle='#7080a0';
+    ctx.font='300 12px Inter, sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText('Start the simulation to see the 3D chart',w/2,h/2);
+    return;
+  }
+
+  // Find max value
+  let maxV=initialBudget;
+  for(const p of history){
+    if(p.total>maxV)maxV=p.total;
+    if(p.main>maxV)maxV=p.main;
+    if(p.side>maxV)maxV=p.side;
+  }
+  maxV*=1.1;
+
+  // Project 3D point (x: time, y: value, z: layer) to 2D
+  // Isometric-like projection: x' = x + z*0.4, y' = y - z*0.5
+  function proj(xNorm, val, zLayer){
+    const x0=padL + xNorm*plotW + zLayer*depth*0.6;
+    const y0=padT + plotH - (val/maxV)*plotH - zLayer*depth*0.5;
+    return [x0, y0];
+  }
+
+  // Draw 3D grid (floor)
+  ctx.strokeStyle='rgba(255,255,255,.05)';
+  ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const xN=i/4;
+    const [x1,y1]=proj(xN,0,0);
+    const [x2,y2]=proj(xN,0,1);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  }
+  for(let i=0;i<=4;i++){
+    const zL=i/4;
+    const [x1,y1]=proj(0,0,zL);
+    const [x2,y2]=proj(1,0,zL);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  }
+
+  // Y axis labels (money)
+  ctx.fillStyle='#7080a0';
+  ctx.font='400 10px "Roboto Mono", monospace';
+  ctx.textAlign='right';
+  for(let i=0;i<=4;i++){
+    const val=maxV*(1-i/4);
+    const [x,y]=proj(0, val, 0);
+    ctx.fillText(val>=1000?'$'+(val/1000).toFixed(0)+'k':'$'+val.toFixed(0), x-8, y+3);
+    // grid line
+    ctx.strokeStyle='rgba(255,255,255,.04)';
+    ctx.beginPath();
+    const [xE,yE]=proj(1, val, 0);
+    ctx.moveTo(x,y); ctx.lineTo(xE,yE); ctx.stroke();
+  }
+
+  // Budget reference line (at depth 0, flat)
+  ctx.strokeStyle='rgba(240,242,248,.25)';
+  ctx.setLineDash([4,4]);
+  const [bx1,by1]=proj(0,initialBudget,0);
+  const [bx2,by2]=proj(1,initialBudget,0);
+  ctx.beginPath(); ctx.moveTo(bx1,by1); ctx.lineTo(bx2,by2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Three lines at different Z layers
+  // zLayer: 0 = back (total), 0.5 = middle (main), 1 = front (side)
+  function drawLine(getVal, zLayer, color, glow){
+    const n=history.length;
+    ctx.strokeStyle=color; ctx.lineWidth=2;
+    ctx.shadowBlur=glow; ctx.shadowColor=color;
+
+    // fill area (subtle)
+    ctx.beginPath();
+    ctx.globalAlpha=0.08;
+    ctx.fillStyle=color;
+    for(let i=0;i<n;i++){
+      const xN=i/(n-1);
+      const [x,y]=proj(xN, getVal(history[i]), zLayer);
+      if(i===0){ctx.moveTo(x,y);} else {ctx.lineTo(x,y);}
+    }
+    const [xLast,]=proj(1, 0, zLayer);
+    const [xFirst,yFirst0]=proj(0, 0, zLayer);
+    ctx.lineTo(xLast, proj(1,0,zLayer)[1]);
+    ctx.lineTo(xFirst, yFirst0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha=1;
+
+    // line
+    ctx.beginPath();
+    for(let i=0;i<n;i++){
+      const xN=i/(n-1);
+      const [x,y]=proj(xN, getVal(history[i]), zLayer);
+      if(i===0){ctx.moveTo(x,y);} else {ctx.lineTo(x,y);}
+    }
+    ctx.stroke();
+    ctx.shadowBlur=0;
+
+    // last point dot
+    const [lx,ly]=proj(1, getVal(history[n-1]), zLayer);
+    ctx.fillStyle=color;
+    ctx.shadowBlur=12; ctx.shadowColor=color;
+    ctx.beginPath(); ctx.arc(lx,ly,4,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+  }
+
+  // Back to front (so nearer layers occlude farther)
+  drawLine(p=>p.main, 0, '#448aff', 8);
+  drawLine(p=>p.side, 0.5, '#ffc107', 8);
+  drawLine(p=>p.total, 1, '#00e676', 10);
+}
+
+// Redraw chart on resize
+window.addEventListener('resize', drawChart);
 
 function log(m,c='info'){const d=$('tradeLog'),l=document.createElement('div');l.className='log-line '+c;l.textContent=m;d.appendChild(l);d.scrollTop=d.scrollHeight;while(d.children.length>500)d.removeChild(d.firstChild)}
 function logH(m,col='#8494b2'){const d=$('loopHistory'),l=document.createElement('div');l.className='hist-line';l.style.color=col;l.textContent=m;d.insertBefore(l,d.firstChild);while(d.children.length>200)d.removeChild(d.lastChild)}
@@ -836,6 +1026,7 @@ function startSim(){
   runnerRate=parseInt($('rateSlider').value)/100;initialBudget=parseInt($('budgetSlider').value);
   reservePct=parseInt($('reserveSlider').value)/100;multiplier=2-reservePct;speed=101-parseInt($('speedSlider').value);
   mainPool=initialBudget;sidePotPool=0;activeCap=0;streak=0;bestStreak=0;loopNum=0;totalTrades=0;loopSidePot=0;completions=0;
+  history=[{t:0,total:initialBudget,main:initialBudget,side:0}];_lastPush=0;
   $('tradeLog').innerHTML='';$('loopHistory').innerHTML='';initSteps();updMult();
   running=true;$('btnStart').style.display='none';$('btnStop').style.display='';
   log(`\u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d4 \u05d4\u05ea\u05d7\u05d9\u05dc\u05d4 | \u05d9\u05e2\u05d3: ${TARGET} \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd | \u05d4\u05e6\u05dc\u05d7\u05d4: ${(runnerRate*100).toFixed(0)}% | \u05ea\u05e7\u05e6\u05d9\u05d1: ${fmt(initialBudget)} | \u05e7"\u05e6: ${(reservePct*100).toFixed(0)}%`,'info');
@@ -855,12 +1046,12 @@ $('rateSlider').oninput=function(){$('rateDisplay').textContent=this.value+'%';c
 $('budgetSlider').oninput=function(){$('budgetDisplay').textContent='$'+parseInt(this.value).toLocaleString();calcForecast()};
 $('reserveSlider').oninput=function(){reservePct=parseInt(this.value)/100;multiplier=2-reservePct;$('reserveDisplay').textContent=this.value+'%';updMult();calcForecast()};
 $('speedSlider').oninput=function(){speed=101-parseInt(this.value);$('speedDisplay').textContent=speed+'ms'};
-$('targetSlider').oninput=function(){TARGET=parseInt(this.value);$('targetDisplay').textContent=this.value;document.querySelector('.page-title').textContent=`${TARGET} \u05d4\u05db\u05e4\u05dc\u05d5\u05ea \u2014 \u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d9\u05ea \u05dc\u05d5\u05e4 \u05d7\u05d9`;initSteps();updMult();updStats();calcForecast();};
+$('targetSlider').oninput=function(){TARGET=parseInt(this.value);$('targetDisplay').textContent=this.value;$('titleNum').textContent=TARGET;initSteps();updMult();updStats();calcForecast();};
 $('loopStartSlider').oninput=function(){LOOP_START=parseInt(this.value);$('loopStartDisplay').textContent='$'+this.value;updMult();calcForecast()};
 
 document.addEventListener('click',e=>{document.querySelectorAll('.tip.tapped').forEach(t=>t.classList.remove('tapped'));const t=e.target.closest('.tip');if(t){e.preventDefault();t.classList.add('tapped')}});
 
-initSteps();updStats();updMult();calcForecast();
+initSteps();updStats();updMult();calcForecast();drawChart();
 </script>
 </body>
 </html>
