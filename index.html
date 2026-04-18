@@ -308,6 +308,34 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 .mult-info .hi { color: var(--gold); font-weight: 800; font-family: var(--mono); }
 
+/* ═══════ Quant-style Charts ═══════ */
+.quant-chart {
+  background: #000 !important;
+  border-color: #1a1a1f !important;
+}
+.chart-title-latex {
+  font-family: 'Georgia', serif; font-style: italic;
+  font-size: 13px; color: #6a7a94;
+  text-align: center; padding: 6px 0 2px;
+  letter-spacing: 0.02em;
+}
+.chart-legend {
+  display: flex; gap: 16px; margin-top: 10px;
+  flex-wrap: wrap; justify-content: flex-start;
+  padding: 6px 10px; background: rgba(255,255,255,.02);
+  border-radius: 6px;
+}
+.lg-item { display: flex; align-items: center; gap: 6px; }
+.lg-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+.bar-gradient-legend {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 8px; padding: 0 6px;
+}
+.gradient-strip {
+  flex: 1; height: 6px; border-radius: 3px;
+  background: linear-gradient(to right, #0a1929 0%, #00b4d8 30%, #48cae4 60%, #ff4081 100%);
+}
+
 /* ═══════ Forecast Box ═══════ */
 .forecast {
   padding: 14px; margin-bottom: 14px;
@@ -524,19 +552,36 @@ input[type=range]::-webkit-slider-thumb:hover {
         </div>
       </div>
 
-      <!-- 3D Chart -->
-      <div class="card">
+      <!-- 3D Money Field -->
+      <div class="card quant-chart">
         <div class="card-header">
-          <span class="card-title">Money · 3D</span>
-          <span class="mono-label" id="chartLegend" style="color:var(--fg-dim)">live</span>
+          <span class="card-title">ζ-Field · Money Dynamics</span>
+          <span class="mono-label" style="color:var(--fg-dim)">LIVE</span>
         </div>
-        <div class="card-body" style="padding: 10px 12px;">
-          <canvas id="chart3d" width="700" height="300" style="width:100%; height:300px; display:block;"></canvas>
-          <div style="display:flex; gap:16px; margin-top:10px; flex-wrap:wrap;">
-            <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--green);border-radius:2px;"></span><span class="mono-label">Total</span></div>
-            <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--blue);border-radius:2px;"></span><span class="mono-label">Main Pool</span></div>
-            <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--gold);border-radius:2px;"></span><span class="mono-label">Side Pot</span></div>
-            <div style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;background:var(--fg);border-radius:2px;opacity:.4;"></span><span class="mono-label">Budget</span></div>
+        <div class="card-body" style="padding: 14px 14px 8px;">
+          <div class="chart-title-latex" id="chartFormula">Ξ(t) = Main(t) · α + Side(t) · β + Active(t) · γ</div>
+          <canvas id="chart3d" style="width:100%; height:320px; display:block; margin-top:8px;"></canvas>
+          <div class="chart-legend">
+            <div class="lg-item"><span class="lg-dot" style="background:#00e676;"></span><span class="mono-label">TOTAL</span></div>
+            <div class="lg-item"><span class="lg-dot" style="background:#448aff;"></span><span class="mono-label">MAIN</span></div>
+            <div class="lg-item"><span class="lg-dot" style="background:#ff4081;"></span><span class="mono-label">SIDE POT</span></div>
+            <div class="lg-item"><span class="lg-dot" style="background:#ffffff;opacity:.4;"></span><span class="mono-label">BUDGET</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Side Pot Bars -->
+      <div class="card quant-chart">
+        <div class="card-header">
+          <span class="card-title">Side Pot per Loop · Residue</span>
+          <span class="mono-label" style="color:var(--fg-dim)" id="barStats">—</span>
+        </div>
+        <div class="card-body" style="padding: 14px 14px 10px;">
+          <canvas id="chartBars" style="width:100%; height:160px; display:block;"></canvas>
+          <div class="bar-gradient-legend">
+            <span class="mono-label" style="color:var(--fg-dim)">0</span>
+            <div class="gradient-strip"></div>
+            <span class="mono-label" style="color:var(--fg)" id="barMax">MAX</span>
           </div>
         </div>
       </div>
@@ -836,133 +881,267 @@ function updStats(){
   }
 }
 
-// ═══════ 3D Isometric Chart ═══════
-function drawChart(){
-  const c=$('chart3d'); if(!c)return;
+// ═══════ ζ-Field Quant-style Charts ═══════
+let loopSidePotHistory=[]; // {loop, sp, failed_at}
+
+function setupCanvas(c){
   const dpr=window.devicePixelRatio||1;
   const w=c.clientWidth, h=c.clientHeight;
   if(c.width!==w*dpr){c.width=w*dpr; c.height=h*dpr;}
   const ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,w,h);
+  return {ctx, w, h};
+}
 
-  const padL=50, padR=20, padT=20, padB=30;
-  const plotW=w-padL-padR, plotH=h-padT-padB;
-  const depth=40; // 3D depth
+// Color gradient: blue → cyan → pink (like Citadel)
+function gradColor(t){
+  // t in [0,1]
+  if(t<0.33){
+    // dark blue → cyan
+    const k=t/0.33;
+    const r=Math.round(10+k*(0*(1-k)+72*k));
+    const g=Math.round(25+k*160);
+    const b=Math.round(41+k*180);
+    return `rgb(${r},${g},${b})`;
+  } else if(t<0.66){
+    // cyan → light cyan/teal
+    const k=(t-0.33)/0.33;
+    return `rgb(${Math.round(72+k*0)},${Math.round(185+k*20)},${Math.round(221+k*-40)})`;
+  } else {
+    // cyan → pink/magenta
+    const k=(t-0.66)/0.34;
+    const r=Math.round(72+k*(255-72));
+    const g=Math.round(205+k*(64-205));
+    const b=Math.round(181+k*(129-181));
+    return `rgb(${r},${g},${b})`;
+  }
+}
+
+function drawChart(){
+  const c=$('chart3d'); if(!c)return;
+  const {ctx,w,h}=setupCanvas(c);
+
+  // Black background with subtle stars
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle='rgba(255,255,255,.3)';
+  for(let i=0;i<40;i++){
+    const x=(i*131+Math.floor(totalTrades/50)*7)%w;
+    const y=(i*79)%h;
+    ctx.fillRect(x,y,1,1);
+  }
 
   if(history.length<2){
-    ctx.fillStyle='#7080a0';
-    ctx.font='300 12px Inter, sans-serif';
+    ctx.fillStyle='#4a5a74';
+    ctx.font='300 13px Inter, sans-serif';
     ctx.textAlign='center';
-    ctx.fillText('Start the simulation to see the 3D chart',w/2,h/2);
+    ctx.fillText('Run the simulation to activate ζ-Field',w/2,h/2);
     return;
   }
 
-  // Find max value
+  const padL=54, padR=30, padT=16, padB=46;
+  const plotW=w-padL-padR, plotH=h-padT-padB;
+  const depth=50;
+
   let maxV=initialBudget;
   for(const p of history){
     if(p.total>maxV)maxV=p.total;
     if(p.main>maxV)maxV=p.main;
     if(p.side>maxV)maxV=p.side;
   }
-  maxV*=1.1;
+  maxV*=1.15;
 
-  // Project 3D point (x: time, y: value, z: layer) to 2D
-  // Isometric-like projection: x' = x + z*0.4, y' = y - z*0.5
+  // Projection: x=time, y=value, z=layer
   function proj(xNorm, val, zLayer){
-    const x0=padL + xNorm*plotW + zLayer*depth*0.6;
-    const y0=padT + plotH - (val/maxV)*plotH - zLayer*depth*0.5;
+    const x0=padL + xNorm*plotW + zLayer*depth*0.55;
+    const y0=padT + plotH - (val/maxV)*plotH - zLayer*depth*0.45;
     return [x0, y0];
   }
 
-  // Draw 3D grid (floor)
-  ctx.strokeStyle='rgba(255,255,255,.05)';
-  ctx.lineWidth=1;
-  for(let i=0;i<=4;i++){
-    const xN=i/4;
+  // Floor grid with perspective
+  const gridColor='rgba(90,110,140,.12)';
+  ctx.strokeStyle=gridColor; ctx.lineWidth=1;
+  for(let i=0;i<=8;i++){
+    const xN=i/8;
     const [x1,y1]=proj(xN,0,0);
     const [x2,y2]=proj(xN,0,1);
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   }
-  for(let i=0;i<=4;i++){
-    const zL=i/4;
+  for(let i=0;i<=6;i++){
+    const zL=i/6;
     const [x1,y1]=proj(0,0,zL);
     const [x2,y2]=proj(1,0,zL);
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   }
 
-  // Y axis labels (money)
-  ctx.fillStyle='#7080a0';
-  ctx.font='400 10px "Roboto Mono", monospace';
+  // Y axis (money)
+  ctx.fillStyle='#6a7a94';
+  ctx.font='400 9px "Roboto Mono", monospace';
   ctx.textAlign='right';
   for(let i=0;i<=4;i++){
     const val=maxV*(1-i/4);
     const [x,y]=proj(0, val, 0);
-    ctx.fillText(val>=1000?'$'+(val/1000).toFixed(0)+'k':'$'+val.toFixed(0), x-8, y+3);
-    // grid line
-    ctx.strokeStyle='rgba(255,255,255,.04)';
-    ctx.beginPath();
+    const txt=val>=1000?'$'+(val/1000).toFixed(val>=10000?0:1)+'K':'$'+val.toFixed(0);
+    ctx.fillText(txt, x-8, y+3);
+    ctx.strokeStyle='rgba(90,110,140,.06)';
     const [xE,yE]=proj(1, val, 0);
-    ctx.moveTo(x,y); ctx.lineTo(xE,yE); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(xE,yE); ctx.stroke();
   }
 
-  // Budget reference line (at depth 0, flat)
-  ctx.strokeStyle='rgba(240,242,248,.25)';
-  ctx.setLineDash([4,4]);
+  // Axis labels (like the reference)
+  ctx.save();
+  ctx.translate(12, padT+plotH/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#6a7a94';
+  ctx.font='400 9px "Roboto Mono", monospace';
+  ctx.textAlign='center';
+  ctx.fillText('Φ-MONEY', 0, 0);
+  ctx.restore();
+
+  ctx.fillStyle='#6a7a94';
+  ctx.font='400 9px "Roboto Mono", monospace';
+  ctx.textAlign='center';
+  ctx.fillText('Ξ(t) — TRADES', padL+plotW/2, h-8);
+
+  // Budget reference dashed
+  ctx.strokeStyle='rgba(240,242,248,.2)';
+  ctx.setLineDash([3,3]);
   const [bx1,by1]=proj(0,initialBudget,0);
   const [bx2,by2]=proj(1,initialBudget,0);
   ctx.beginPath(); ctx.moveTo(bx1,by1); ctx.lineTo(bx2,by2); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Three lines at different Z layers
-  // zLayer: 0 = back (total), 0.5 = middle (main), 1 = front (side)
-  function drawLine(getVal, zLayer, color, glow){
+  // Draw ribbon (3D band) for each series
+  function drawRibbon(getVal, zLayer, color, glow){
     const n=history.length;
-    ctx.strokeStyle=color; ctx.lineWidth=2;
-    ctx.shadowBlur=glow; ctx.shadowColor=color;
-
-    // fill area (subtle)
+    // Subtle filled area (gradient from 0 to current)
+    ctx.save();
+    const grad=ctx.createLinearGradient(0, padT, 0, padT+plotH);
+    grad.addColorStop(0, color.replace('rgb','rgba').replace(')',',.35)'));
+    grad.addColorStop(1, color.replace('rgb','rgba').replace(')',',0)'));
+    ctx.fillStyle=grad;
     ctx.beginPath();
-    ctx.globalAlpha=0.08;
-    ctx.fillStyle=color;
     for(let i=0;i<n;i++){
       const xN=i/(n-1);
       const [x,y]=proj(xN, getVal(history[i]), zLayer);
-      if(i===0){ctx.moveTo(x,y);} else {ctx.lineTo(x,y);}
+      if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
     }
-    const [xLast,]=proj(1, 0, zLayer);
-    const [xFirst,yFirst0]=proj(0, 0, zLayer);
-    ctx.lineTo(xLast, proj(1,0,zLayer)[1]);
-    ctx.lineTo(xFirst, yFirst0);
+    ctx.lineTo(proj(1,0,zLayer)[0], proj(1,0,zLayer)[1]);
+    ctx.lineTo(proj(0,0,zLayer)[0], proj(0,0,zLayer)[1]);
     ctx.closePath();
     ctx.fill();
-    ctx.globalAlpha=1;
+    ctx.restore();
 
-    // line
+    // Glow line
+    ctx.strokeStyle=color;
+    ctx.lineWidth=2;
+    ctx.shadowBlur=glow;
+    ctx.shadowColor=color;
     ctx.beginPath();
     for(let i=0;i<n;i++){
       const xN=i/(n-1);
       const [x,y]=proj(xN, getVal(history[i]), zLayer);
-      if(i===0){ctx.moveTo(x,y);} else {ctx.lineTo(x,y);}
+      if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
     }
     ctx.stroke();
     ctx.shadowBlur=0;
 
-    // last point dot
+    // End dot with glow
     const [lx,ly]=proj(1, getVal(history[n-1]), zLayer);
     ctx.fillStyle=color;
-    ctx.shadowBlur=12; ctx.shadowColor=color;
-    ctx.beginPath(); ctx.arc(lx,ly,4,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=16; ctx.shadowColor=color;
+    ctx.beginPath(); ctx.arc(lx,ly,4.5,0,Math.PI*2); ctx.fill();
     ctx.shadowBlur=0;
+    // Inner white dot
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(lx,ly,1.5,0,Math.PI*2); ctx.fill();
   }
 
-  // Back to front (so nearer layers occlude farther)
-  drawLine(p=>p.main, 0, '#448aff', 8);
-  drawLine(p=>p.side, 0.5, '#ffc107', 8);
-  drawLine(p=>p.total, 1, '#00e676', 10);
+  // Back to front
+  drawRibbon(p=>p.main, 0, 'rgb(68,138,255)', 10);
+  drawRibbon(p=>p.side, 0.5, 'rgb(255,64,129)', 12);
+  drawRibbon(p=>p.total, 1, 'rgb(0,230,118)', 14);
 }
 
-// Redraw chart on resize
-window.addEventListener('resize', drawChart);
+// ═══════ Bar Chart (Side Pot per Loop) ═══════
+function drawBars(){
+  const c=$('chartBars'); if(!c)return;
+  const {ctx,w,h}=setupCanvas(c);
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+
+  const padL=40, padR=14, padT=10, padB=22;
+  const plotW=w-padL-padR, plotH=h-padT-padB;
+
+  if(loopSidePotHistory.length===0){
+    ctx.fillStyle='#4a5a74';
+    ctx.font='300 11px Inter, sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText('Loop side-pot contributions appear here', w/2, h/2);
+    return;
+  }
+
+  // Show last N bars
+  const recent=loopSidePotHistory.slice(-80);
+  const maxSp=Math.max(...recent.map(x=>x.sp), LOOP_START);
+
+  $('barMax').textContent=maxSp>=1000?'$'+(maxSp/1000).toFixed(1)+'K':'$'+maxSp.toFixed(0);
+  const avg=recent.reduce((a,b)=>a+b.sp,0)/recent.length;
+  $('barStats').textContent='AVG $'+avg.toFixed(2)+' · N='+loopSidePotHistory.length;
+
+  // Y axis
+  ctx.fillStyle='#6a7a94';
+  ctx.font='400 9px "Roboto Mono", monospace';
+  ctx.textAlign='right';
+  for(let i=0;i<=3;i++){
+    const val=maxSp*(1-i/3);
+    const y=padT+plotH*(i/3);
+    ctx.fillText(val>=1000?'$'+(val/1000).toFixed(1)+'K':'$'+val.toFixed(0), padL-6, y+3);
+    ctx.strokeStyle='rgba(90,110,140,.08)';
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+plotW,y); ctx.stroke();
+  }
+
+  // Loop start reference line
+  const lsY=padT+plotH-(LOOP_START/maxSp)*plotH;
+  ctx.strokeStyle='rgba(255,255,255,.15)';
+  ctx.setLineDash([2,2]);
+  ctx.beginPath(); ctx.moveTo(padL,lsY); ctx.lineTo(padL+plotW,lsY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,255,255,.4)';
+  ctx.textAlign='left';
+  ctx.fillText('LS', padL+plotW-18, lsY-3);
+
+  // Bars
+  const bw=plotW/recent.length;
+  for(let i=0;i<recent.length;i++){
+    const d=recent[i];
+    const hVal=(d.sp/maxSp)*plotH;
+    const x=padL+i*bw+bw*0.1;
+    const y=padT+plotH-hVal;
+    const t=d.sp/maxSp;
+    const color=gradColor(Math.min(1,t));
+    // Gradient vertical for each bar
+    const g=ctx.createLinearGradient(0, y, 0, padT+plotH);
+    g.addColorStop(0, color);
+    g.addColorStop(1, 'rgba(10,25,41,.3)');
+    ctx.fillStyle=g;
+    ctx.fillRect(x, y, bw*0.8, hVal);
+    // Top cap brighter
+    if(hVal>1){
+      ctx.fillStyle=color;
+      ctx.globalAlpha=0.9;
+      ctx.shadowBlur=6; ctx.shadowColor=color;
+      ctx.fillRect(x, y, bw*0.8, 2);
+      ctx.shadowBlur=0;
+      ctx.globalAlpha=1;
+    }
+  }
+
+  // X axis label
+  ctx.fillStyle='#6a7a94';
+  ctx.font='400 9px "Roboto Mono", monospace';
+  ctx.textAlign='center';
+  ctx.fillText('LAST '+recent.length+' LOOPS', padL+plotW/2, h-6);
+}
+
+window.addEventListener('resize', ()=>{drawChart();drawBars();});
 
 function log(m,c='info'){const d=$('tradeLog'),l=document.createElement('div');l.className='log-line '+c;l.textContent=m;d.appendChild(l);d.scrollTop=d.scrollHeight;while(d.children.length>500)d.removeChild(d.firstChild)}
 function logH(m,col='#8494b2'){const d=$('loopHistory'),l=document.createElement('div');l.className='hist-line';l.style.color=col;l.textContent=m;d.insertBefore(l,d.firstChild);while(d.children.length>200)d.removeChild(d.lastChild)}
@@ -998,6 +1177,9 @@ function trade(){
       completions++;
       const won=activeCap;
       mainPool+=won;
+      loopSidePotHistory.push({loop:loopNum, sp:loopSidePot, failedAt:TARGET});
+      if(loopSidePotHistory.length>500)loopSidePotHistory.shift();
+      drawBars();
       logH(`\u05dc\u05d5\u05e4 #${loopNum}: \u05d4\u05d5\u05e9\u05dc\u05dd! ${TARGET}/${TARGET} | +${fmt(won)} \u05dc\u05e8\u05d0\u05e9\u05d9\u05ea`,'#ffc107');
       log(`\u2605 \u05dc\u05d5\u05e4 #${loopNum} \u05d4\u05d5\u05e9\u05dc\u05dd! ${TARGET} \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd! +${fmt(won)} \u05e0\u05db\u05e0\u05e1 \u05dc\u05e7\u05d5\u05e4\u05d4 \u05e8\u05d0\u05e9\u05d9\u05ea (\u05d4\u05e9\u05dc\u05de\u05d4 #${completions})`,'gold');
       toast(`\u2605 \u05d4\u05e9\u05dc\u05de\u05d4 #${completions}! +${fmt(won)}`);
@@ -1013,6 +1195,10 @@ function trade(){
     log(`  \u05d4\u05e4\u05e1\u05d3 \u05d1\u05e9\u05dc\u05d1 ${streak+1} | \u05d4\u05d5\u05df ${fmt(activeCap)} \u05d0\u05d1\u05d3 | \u05e7\u05d5\u05e4\u05ea \u05e6\u05d3: ${fmt(loopSidePot)}`,'loss');
     logH(`\u05dc\u05d5\u05e4 #${loopNum}: \u05e0\u05db\u05e9\u05dc \u05d1\u05e9\u05dc\u05d1 ${fa}/${TARGET} | \u05e7"\u05e6: ${fmt(loopSidePot)}`,fa>=5?'#ffc107':fa>=3?'#8494b2':'#ff5252');
     if(streak>0)flash(streak+1,'fail');
+    // record this loop's side pot contribution
+    loopSidePotHistory.push({loop:loopNum, sp:loopSidePot, failedAt:fa});
+    if(loopSidePotHistory.length>500)loopSidePotHistory.shift();
+    drawBars();
     // sidePotPool already has the money from wins — no need to add
     streak=0;activeCap=0;loopSidePot=0;updSteps();updStats();
     if(mainPool>=LOOP_START||sidePotPool>=LOOP_START){setTimeout(()=>{if(!running)return;newLoop();updStats();timerId=setTimeout(trade,speed)},Math.min(speed*3,200))}
@@ -1027,6 +1213,7 @@ function startSim(){
   reservePct=parseInt($('reserveSlider').value)/100;multiplier=2-reservePct;speed=101-parseInt($('speedSlider').value);
   mainPool=initialBudget;sidePotPool=0;activeCap=0;streak=0;bestStreak=0;loopNum=0;totalTrades=0;loopSidePot=0;completions=0;
   history=[{t:0,total:initialBudget,main:initialBudget,side:0}];_lastPush=0;
+  loopSidePotHistory=[];drawBars();
   $('tradeLog').innerHTML='';$('loopHistory').innerHTML='';initSteps();updMult();
   running=true;$('btnStart').style.display='none';$('btnStop').style.display='';
   log(`\u05e1\u05d9\u05de\u05d5\u05dc\u05e6\u05d9\u05d4 \u05d4\u05ea\u05d7\u05d9\u05dc\u05d4 | \u05d9\u05e2\u05d3: ${TARGET} \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd | \u05d4\u05e6\u05dc\u05d7\u05d4: ${(runnerRate*100).toFixed(0)}% | \u05ea\u05e7\u05e6\u05d9\u05d1: ${fmt(initialBudget)} | \u05e7"\u05e6: ${(reservePct*100).toFixed(0)}%`,'info');
@@ -1051,7 +1238,7 @@ $('loopStartSlider').oninput=function(){LOOP_START=parseInt(this.value);$('loopS
 
 document.addEventListener('click',e=>{document.querySelectorAll('.tip.tapped').forEach(t=>t.classList.remove('tapped'));const t=e.target.closest('.tip');if(t){e.preventDefault();t.classList.add('tapped')}});
 
-initSteps();updStats();updMult();calcForecast();drawChart();
+initSteps();updStats();updMult();calcForecast();drawChart();drawBars();
 </script>
 </body>
 </html>
