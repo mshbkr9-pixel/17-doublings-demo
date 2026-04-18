@@ -624,8 +624,10 @@ input[type=range]::-webkit-slider-thumb:hover {
           <div class="chart-divider"></div>
           <canvas id="chartLine" style="width:100%; height:220px; display:block; margin-top:4px;"></canvas>
           <div class="chart-legend-inline" id="lineLegend">
-            <span id="legMain">MAIN —</span>
-            <span id="legSide">SIDE POT —</span>
+            <span id="legMain" style="color:#448aff;">MAIN POOL —</span>
+            <span style="color:#448aff; opacity:.7;">EMA(9) ──</span>
+            <span style="color:#ef4444; opacity:.7;">EMA(21) ──</span>
+            <span style="color:#00c853;">BUDGET ──</span>
           </div>
         </div>
       </div>
@@ -1192,7 +1194,7 @@ function drawLine(){
 
   // Aggregate data into OHLC candles
   const n=history.length;
-  const MAX_CANDLES=60;
+  const MAX_CANDLES=45;
   const bucket=Math.max(1, Math.ceil(n/MAX_CANDLES));
   const candles=[];
   for(let i=0;i<n;i+=bucket){
@@ -1208,16 +1210,19 @@ function drawLine(){
     candles.push({o,h:hi,l:lo,c,side:sideEnd, idx:i+slice.length-1});
   }
 
-  // Find min/max
-  let maxV=initialBudget, minV=0;
+  // Find min/max — focus on MAIN POOL range (like a stock price) with auto-zoom
+  let maxV=history[0].main, minV=history[0].main;
   for(const p of history){
     if(p.main>maxV)maxV=p.main;
-    if(p.side>maxV)maxV=p.side;
     if(p.main<minV)minV=p.main;
   }
-  const range=maxV-minV||1;
-  maxV+=range*0.08;
-  minV=Math.max(0, minV-range*0.05);
+  // Include the initial budget as a reference but not forcing scale to 0
+  if(initialBudget>maxV)maxV=initialBudget;
+  if(initialBudget<minV)minV=initialBudget;
+  const range=Math.max(10, maxV-minV); // minimum range to avoid divide-by-zero
+  maxV+=range*0.12;
+  minV-=range*0.12;
+  if(minV<0)minV=0;
 
   const yOf=(v)=>padT+plotH-((v-minV)/(maxV-minV))*plotH;
 
@@ -1267,7 +1272,7 @@ function drawLine(){
   }
 
   // Draw candlesticks (main pool)
-  const cw=Math.max(2, plotW/candles.length*0.75);
+  const cw=Math.max(4, plotW/candles.length*0.7);
   for(let i=0;i<candles.length;i++){
     const cd=candles[i];
     const x=padL+((i+0.5)/candles.length)*plotW;
@@ -1315,34 +1320,27 @@ function drawLine(){
     ctx.shadowBlur=0;
   }
 
-  // Main pool EMAs
-  drawSmoothLine(emaMainFast, '#448aff', 1.6, 0);
-  drawSmoothLine(emaMainSlow, '#ef4444', 1.6, 0);
-
-  // Side pot — thicker pink line (the "star" indicator)
-  drawSmoothLine(sideVals, '#ff4081', 2, 6);
-  drawSmoothLine(emaSideSlow, 'rgba(255,64,129,.4)', 1.2, 0);
+  // Main pool EMAs — classic TV indicators
+  drawSmoothLine(emaMainFast, '#448aff', 1.8, 3);
+  drawSmoothLine(emaMainSlow, '#ef4444', 1.8, 3);
 
   // Price labels on right (like TV)
   function priceLabel(val, color, bg){
+    if(val<minV||val>maxV)return;
     const y=yOf(val);
     const txt=val>=1000?'$'+(val/1000).toFixed(2)+'K':'$'+val.toFixed(2);
+    ctx.font='500 10px "Roboto Mono", monospace';
     const tw=ctx.measureText(txt).width;
     const pad=6;
-    // Background box
     ctx.fillStyle=bg||color;
     ctx.fillRect(padL+plotW+2, y-8, tw+pad*2, 16);
-    // Text
     ctx.fillStyle='#fff';
-    ctx.font='500 10px "Roboto Mono", monospace';
     ctx.textAlign='left';
     ctx.fillText(txt, padL+plotW+2+pad, y+3);
   }
 
   const last=history[history.length-1];
   priceLabel(last.main, '#448aff');
-  priceLabel(last.side, '#ff4081');
-  // Budget label on right (green)
   priceLabel(initialBudget, '#00c853');
 
   // X axis label
