@@ -625,9 +625,7 @@ input[type=range]::-webkit-slider-thumb:hover {
           <canvas id="chartLine" style="width:100%; height:220px; display:block; margin-top:4px;"></canvas>
           <div class="chart-legend-inline" id="lineLegend">
             <span id="legMain" style="color:#448aff;">MAIN POOL —</span>
-            <span style="color:#448aff; opacity:.7;">EMA(9) ──</span>
-            <span style="color:#ef4444; opacity:.7;">EMA(21) ──</span>
-            <span style="color:#00c853;">BUDGET ──</span>
+            <span id="legSide" style="color:#ff4081;">SIDE POT —</span>
           </div>
         </div>
       </div>
@@ -935,14 +933,30 @@ function updStats(){
   $('loopBadge').textContent='\u05dc\u05d5\u05e4 #'+loopNum;
   $('totalTrades').textContent=totalTrades.toLocaleString();
   $('bestStreak').textContent=bestStreak;
-  // track history for 3D chart
-  if(totalTrades-_lastPush>=1||history.length===0){
+  // track history for charts (throttled — every N trades)
+  const step=Math.max(1, Math.floor(speed<10?5:1));
+  if(totalTrades-_lastPush>=step||history.length===0){
     _lastPush=totalTrades;
     history.push({t:totalTrades, total:total, main:mainPool, side:sidePotPool});
-    if(history.length>500){history.shift();}
-    drawChart();
+    if(history.length>400){history.shift();}
   }
 }
+
+// Throttled chart rendering (max ~15fps for line chart)
+let _chartDirty=true;
+let _lastChartDraw=0;
+function requestChartDraw(){_chartDirty=true;}
+function renderLoop(){
+  const now=performance.now();
+  if(_chartDirty && now-_lastChartDraw>66){
+    drawLine();
+    drawBars();
+    _chartDirty=false;
+    _lastChartDraw=now;
+  }
+  requestAnimationFrame(renderLoop);
+}
+requestAnimationFrame(renderLoop);
 
 // ═══════ ζ-Field Quant-style Charts ═══════
 let loopSidePotHistory=[]; // {loop, sp, failed_at}
@@ -1005,8 +1019,7 @@ function fieldColor(t){
 let _surfaceTime=0;
 function drawChart(){
   _surfaceTime+=0.02;
-  drawSurface();
-  drawLine();
+  requestChartDraw();
 }
 
 function drawSurface(){
@@ -1159,195 +1172,139 @@ function drawSurface(){
 function drawLine(){
   const c=$('chartLine'); if(!c)return;
   const {ctx,w,h}=setupCanvas(c);
-  // Dark trading terminal bg
   ctx.fillStyle='#0a0e14'; ctx.fillRect(0,0,w,h);
 
   if(history.length<2){
     ctx.fillStyle='#3a4a66';
     ctx.font='400 10px "Roboto Mono", monospace';
     ctx.textAlign='center';
-    ctx.fillText('NO DATA — START SIMULATION', w/2, h/2);
+    ctx.fillText('START SIMULATION', w/2, h/2);
     return;
   }
 
-  const padL=60, padR=78, padT=14, padB=26;
+  const padL=56, padR=70, padT=14, padB=26;
   const plotW=w-padL-padR, plotH=h-padT-padB;
-
-  // Compute EMAs for smoothing
-  function ema(arr, period){
-    const k=2/(period+1);
-    const out=[];
-    let prev=arr[0];
-    for(let i=0;i<arr.length;i++){
-      prev=arr[i]*k+prev*(1-k);
-      out.push(prev);
-    }
-    return out;
-  }
-
-  const mainVals=history.map(p=>p.main);
-  const sideVals=history.map(p=>p.side);
-  const emaMainFast=ema(mainVals, 9);
-  const emaMainSlow=ema(mainVals, 21);
-  const emaSideFast=ema(sideVals, 9);
-  const emaSideSlow=ema(sideVals, 21);
-
-  // Aggregate data into OHLC candles
   const n=history.length;
-  const MAX_CANDLES=45;
-  const bucket=Math.max(1, Math.ceil(n/MAX_CANDLES));
-  const candles=[];
-  for(let i=0;i<n;i+=bucket){
-    const slice=history.slice(i, Math.min(n, i+bucket));
-    if(slice.length===0)continue;
-    const o=slice[0].main, c=slice[slice.length-1].main;
-    let hi=slice[0].main, lo=slice[0].main;
-    let sideEnd=slice[slice.length-1].side;
-    for(const p of slice){
-      if(p.main>hi)hi=p.main;
-      if(p.main<lo)lo=p.main;
-    }
-    candles.push({o,h:hi,l:lo,c,side:sideEnd, idx:i+slice.length-1});
-  }
 
-  // Find min/max — focus on MAIN POOL range (like a stock price) with auto-zoom
-  let maxV=history[0].main, minV=history[0].main;
+  // Find min/max across BOTH main and side for combined view
+  let maxV=Math.max(initialBudget, history[0].main, history[0].side);
+  let minV=Math.min(0, history[0].main, history[0].side);
   for(const p of history){
     if(p.main>maxV)maxV=p.main;
+    if(p.side>maxV)maxV=p.side;
     if(p.main<minV)minV=p.main;
+    if(p.side<minV)minV=p.side;
   }
-  // Include the initial budget as a reference but not forcing scale to 0
-  if(initialBudget>maxV)maxV=initialBudget;
-  if(initialBudget<minV)minV=initialBudget;
-  const range=Math.max(10, maxV-minV); // minimum range to avoid divide-by-zero
-  maxV+=range*0.12;
-  minV-=range*0.12;
+  const range=Math.max(10, maxV-minV);
+  maxV+=range*0.08;
+  minV-=range*0.05;
   if(minV<0)minV=0;
 
   const yOf=(v)=>padT+plotH-((v-minV)/(maxV-minV))*plotH;
 
   // Horizontal grid + Y labels
-  ctx.strokeStyle='rgba(80,100,130,.07)';
   ctx.fillStyle='#5a6a88';
   ctx.font='400 10px "Roboto Mono", monospace';
   ctx.textAlign='right';
-  const yTicks=6;
-  for(let i=0;i<=yTicks;i++){
-    const val=maxV-(maxV-minV)*(i/yTicks);
-    const y=padT+plotH*(i/yTicks);
+  for(let i=0;i<=5;i++){
+    const val=maxV-(maxV-minV)*(i/5);
+    const y=padT+plotH*(i/5);
     ctx.fillText(val>=1000?'$'+(val/1000).toFixed(1)+'K':'$'+val.toFixed(0), padL-8, y+3);
+    ctx.strokeStyle='rgba(80,100,130,.08)';
     ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+plotW,y); ctx.stroke();
   }
 
   // Vertical grid
-  const xTicks=6;
-  for(let i=0;i<=xTicks;i++){
-    const x=padL+(i/xTicks)*plotW;
+  for(let i=0;i<=5;i++){
+    const x=padL+(i/5)*plotW;
     ctx.strokeStyle='rgba(80,100,130,.05)';
     ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+plotH); ctx.stroke();
-    const tradeNum=Math.round((i/xTicks)*(history[history.length-1].t));
+    const tradeNum=Math.round((i/5)*(history[n-1].t));
     ctx.fillStyle='#5a6a88';
     ctx.textAlign='center';
     ctx.fillText(tradeNum.toLocaleString(), x, padT+plotH+14);
   }
 
-  // Horizontal support/resistance lines (like TV green/red)
-  // Budget = green (support when above, resistance when below)
+  // Budget reference line (dashed white)
   const budY=yOf(initialBudget);
-  ctx.strokeStyle='#00c853';
-  ctx.lineWidth=1.5;
-  ctx.shadowBlur=4; ctx.shadowColor='#00c853';
+  ctx.strokeStyle='rgba(255,255,255,.25)';
+  ctx.setLineDash([4,4]);
+  ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(padL,budY); ctx.lineTo(padL+plotW,budY); ctx.stroke();
-  ctx.shadowBlur=0;
+  ctx.setLineDash([]);
 
-  // High water mark (red) — the peak main pool reached
-  const peakMain=Math.max(...mainVals);
-  if(peakMain>initialBudget){
-    const peakY=yOf(peakMain);
-    ctx.strokeStyle='#f44336';
-    ctx.lineWidth=1.5;
-    ctx.shadowBlur=4; ctx.shadowColor='#f44336';
-    ctx.beginPath(); ctx.moveTo(padL,peakY); ctx.lineTo(padL+plotW,peakY); ctx.stroke();
-    ctx.shadowBlur=0;
-  }
-
-  // Draw candlesticks (main pool)
-  const cw=Math.max(4, plotW/candles.length*0.7);
-  for(let i=0;i<candles.length;i++){
-    const cd=candles[i];
-    const x=padL+((i+0.5)/candles.length)*plotW;
-    const isUp=cd.c>=cd.o;
-    const yO=yOf(cd.o), yC=yOf(cd.c), yH=yOf(cd.h), yL=yOf(cd.l);
-
-    // Wick (thin line)
-    ctx.strokeStyle=isUp?'#e0e0e0':'#888';
-    ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(x, yH); ctx.lineTo(x, yL); ctx.stroke();
-
-    // Body
-    const bodyTop=Math.min(yO, yC);
-    const bodyH=Math.max(1, Math.abs(yC-yO));
-    if(isUp){
-      // Hollow up candle (like TV)
-      ctx.fillStyle='#0a0e14';
-      ctx.fillRect(x-cw/2, bodyTop, cw, bodyH);
-      ctx.strokeStyle='#e0e0e0';
-      ctx.lineWidth=1;
-      ctx.strokeRect(x-cw/2, bodyTop, cw, bodyH);
-    } else {
-      // Solid down candle
-      ctx.fillStyle='#2a2a2a';
-      ctx.fillRect(x-cw/2, bodyTop, cw, bodyH);
-      ctx.strokeStyle='#888';
-      ctx.lineWidth=1;
-      ctx.strokeRect(x-cw/2, bodyTop, cw, bodyH);
+  // Helper: simple line with filled area
+  function plotSeries(getVal, color, lineWidth, fillAlpha){
+    // Sample points (max 200 for performance)
+    const step=Math.max(1, Math.ceil(n/200));
+    const points=[];
+    for(let i=0;i<n;i+=step){
+      points.push(history[i]);
     }
-  }
+    if(points[points.length-1]!==history[n-1])points.push(history[n-1]);
 
-  // Draw EMAs — two lines like TV indicators (blue + red)
-  function drawSmoothLine(arr, color, lw, glow){
+    // Filled area
+    if(fillAlpha>0){
+      const grad=ctx.createLinearGradient(0, padT, 0, padT+plotH);
+      grad.addColorStop(0, color.replace(')', `,${fillAlpha})`).replace('rgb','rgba'));
+      grad.addColorStop(1, color.replace(')', ',0)').replace('rgb','rgba'));
+      ctx.fillStyle=grad;
+      ctx.beginPath();
+      for(let i=0;i<points.length;i++){
+        const x=padL+(points[i].t/history[n-1].t)*plotW;
+        const y=yOf(getVal(points[i]));
+        if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.lineTo(padL+plotW, padT+plotH);
+      ctx.lineTo(padL, padT+plotH);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Line
     ctx.strokeStyle=color;
-    ctx.lineWidth=lw;
-    ctx.shadowBlur=glow; ctx.shadowColor=color;
+    ctx.lineWidth=lineWidth;
     ctx.lineJoin='round';
+    ctx.lineCap='round';
     ctx.beginPath();
-    for(let i=0;i<arr.length;i++){
-      const x=padL+(i/(arr.length-1))*plotW;
-      const y=yOf(arr[i]);
+    for(let i=0;i<points.length;i++){
+      const x=padL+(points[i].t/history[n-1].t)*plotW;
+      const y=yOf(getVal(points[i]));
       if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
     }
     ctx.stroke();
-    ctx.shadowBlur=0;
+
+    // End dot
+    const last=history[n-1];
+    const ex=padL+plotW;
+    const ey=yOf(getVal(last));
+    ctx.fillStyle=color;
+    ctx.beginPath(); ctx.arc(ex,ey,4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(ex,ey,1.5,0,Math.PI*2); ctx.fill();
   }
 
-  // Main pool EMAs — classic TV indicators
-  drawSmoothLine(emaMainFast, '#448aff', 1.8, 3);
-  drawSmoothLine(emaMainSlow, '#ef4444', 1.8, 3);
+  // Two simple lines — that's it
+  plotSeries(p=>p.main, 'rgb(68,138,255)', 2, 0.15);
+  plotSeries(p=>p.side, 'rgb(255,64,129)', 2, 0.12);
 
-  // Price labels on right (like TV)
-  function priceLabel(val, color, bg){
+  // Price labels on right
+  const last=history[n-1];
+  function priceLabel(val, color){
     if(val<minV||val>maxV)return;
     const y=yOf(val);
     const txt=val>=1000?'$'+(val/1000).toFixed(2)+'K':'$'+val.toFixed(2);
     ctx.font='500 10px "Roboto Mono", monospace';
     const tw=ctx.measureText(txt).width;
-    const pad=6;
-    ctx.fillStyle=bg||color;
+    const pad=5;
+    ctx.fillStyle=color;
     ctx.fillRect(padL+plotW+2, y-8, tw+pad*2, 16);
     ctx.fillStyle='#fff';
     ctx.textAlign='left';
     ctx.fillText(txt, padL+plotW+2+pad, y+3);
   }
-
-  const last=history[history.length-1];
   priceLabel(last.main, '#448aff');
-  priceLabel(initialBudget, '#00c853');
-
-  // X axis label
-  ctx.fillStyle='#5a6a88';
-  ctx.font='400 9px "Roboto Mono", monospace';
-  ctx.textAlign='center';
-  ctx.fillText('TRADES', padL+plotW/2, h-4);
+  priceLabel(last.side, '#ff4081');
 
   // Legend
   const mainChange=last.main-initialBudget;
@@ -1503,7 +1460,6 @@ function trade(){
       mainPool+=won;
       loopSidePotHistory.push({loop:loopNum, sp:loopSidePot, failedAt:TARGET});
       if(loopSidePotHistory.length>500)loopSidePotHistory.shift();
-      drawBars();
       logH(`\u05dc\u05d5\u05e4 #${loopNum}: \u05d4\u05d5\u05e9\u05dc\u05dd! ${TARGET}/${TARGET} | +${fmt(won)} \u05dc\u05e8\u05d0\u05e9\u05d9\u05ea`,'#ffc107');
       log(`\u2605 \u05dc\u05d5\u05e4 #${loopNum} \u05d4\u05d5\u05e9\u05dc\u05dd! ${TARGET} \u05e8\u05e6\u05d5\u05e4\u05d9\u05dd! +${fmt(won)} \u05e0\u05db\u05e0\u05e1 \u05dc\u05e7\u05d5\u05e4\u05d4 \u05e8\u05d0\u05e9\u05d9\u05ea (\u05d4\u05e9\u05dc\u05de\u05d4 #${completions})`,'gold');
       toast(`\u2605 \u05d4\u05e9\u05dc\u05de\u05d4 #${completions}! +${fmt(won)}`);
@@ -1522,7 +1478,6 @@ function trade(){
     // record this loop's side pot contribution
     loopSidePotHistory.push({loop:loopNum, sp:loopSidePot, failedAt:fa});
     if(loopSidePotHistory.length>500)loopSidePotHistory.shift();
-    drawBars();
     // sidePotPool already has the money from wins — no need to add
     streak=0;activeCap=0;loopSidePot=0;updSteps();updStats();
     if(mainPool>=LOOP_START||sidePotPool>=LOOP_START){setTimeout(()=>{if(!running)return;newLoop();updStats();timerId=setTimeout(trade,speed)},Math.min(speed*3,200))}
