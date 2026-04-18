@@ -324,15 +324,17 @@ input[type=range]::-webkit-slider-thumb:hover {
   margin: 6px 0;
 }
 .chart-legend-inline {
-  display: flex; gap: 20px; margin-top: 6px;
-  padding: 4px 10px;
-  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+  display: flex; gap: 24px; margin-top: 8px;
+  padding: 8px 12px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em;
   color: var(--fg-muted);
-  justify-content: flex-end;
+  justify-content: center;
+  background: rgba(255,255,255,.02);
+  border-radius: 6px;
+  font-weight: 500;
 }
-#legTotal { color: #00e676; }
-#legMain { color: #448aff; }
-#legSide { color: #ff4081; }
+#legMain { color: #448aff; text-shadow: 0 0 8px rgba(68,138,255,.4); }
+#legSide { color: #ff4081; text-shadow: 0 0 8px rgba(255,64,129,.4); }
 
 .colorbar-wrap {
   position: absolute; top: 10px; left: 10px;
@@ -620,9 +622,8 @@ input[type=range]::-webkit-slider-thumb:hover {
             </div>
           </div>
           <div class="chart-divider"></div>
-          <canvas id="chartLine" style="width:100%; height:130px; display:block; margin-top:4px;"></canvas>
+          <canvas id="chartLine" style="width:100%; height:220px; display:block; margin-top:4px;"></canvas>
           <div class="chart-legend-inline" id="lineLegend">
-            <span id="legTotal">TOTAL —</span>
             <span id="legMain">MAIN —</span>
             <span id="legSide">SIDE POT —</span>
           </div>
@@ -1166,47 +1167,90 @@ function drawLine(){
     return;
   }
 
-  const padL=50, padR=12, padT=8, padB=18;
+  const padL=56, padR=70, padT=14, padB=26;
   const plotW=w-padL-padR, plotH=h-padT-padB;
 
-  let maxV=initialBudget;
+  // Get min/max for both series
+  let maxV=initialBudget, minV=0;
   for(const p of history){
-    if(p.total>maxV)maxV=p.total;
-  }
-  let minV=0;
-  for(const p of history){
-    if(p.total<minV)minV=p.total;
+    if(p.main>maxV)maxV=p.main;
+    if(p.side>maxV)maxV=p.side;
+    if(p.main<minV)minV=p.main;
+    if(p.side<minV)minV=p.side;
   }
   const range=maxV-minV||1;
-  maxV+=range*0.1;
-  minV-=range*0.05;
+  maxV+=range*0.08;
+  minV=Math.max(0, minV-range*0.05);
 
-  // Y axis
-  ctx.fillStyle='#6a7a94';
+  // Grid — stock chart style (horizontal + vertical)
+  ctx.strokeStyle='rgba(90,110,140,.08)';
+  ctx.lineWidth=0.5;
+  // Horizontal grid
+  ctx.fillStyle='#5a6a88';
   ctx.font='400 9px "Roboto Mono", monospace';
   ctx.textAlign='right';
-  for(let i=0;i<=3;i++){
-    const val=maxV-(maxV-minV)*(i/3);
-    const y=padT+plotH*(i/3);
-    ctx.fillText(val>=1000?'$'+(val/1000).toFixed(1)+'K':'$'+val.toFixed(0), padL-6, y+3);
-    ctx.strokeStyle='rgba(90,110,140,.08)';
+  const yTicks=5;
+  for(let i=0;i<=yTicks;i++){
+    const val=maxV-(maxV-minV)*(i/yTicks);
+    const y=padT+plotH*(i/yTicks);
+    ctx.fillText(val>=1000?'$'+(val/1000).toFixed(1)+'K':'$'+val.toFixed(0), padL-8, y+3);
+    ctx.strokeStyle='rgba(90,110,140,.06)';
     ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+plotW,y); ctx.stroke();
   }
+  // Vertical grid
+  const xTicks=6;
+  for(let i=0;i<=xTicks;i++){
+    const x=padL+(i/xTicks)*plotW;
+    ctx.strokeStyle='rgba(90,110,140,.05)';
+    ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+plotH); ctx.stroke();
+    // X label: trade number
+    const tradeNum=Math.round((i/xTicks)*(history[history.length-1].t));
+    ctx.fillStyle='#5a6a88';
+    ctx.textAlign='center';
+    ctx.fillText(tradeNum.toLocaleString(), x, padT+plotH+14);
+  }
 
-  // Budget reference
+  // Budget reference line
   const budY=padT+plotH-((initialBudget-minV)/(maxV-minV))*plotH;
-  ctx.strokeStyle='rgba(255,255,255,.2)';
-  ctx.setLineDash([3,3]);
+  ctx.strokeStyle='rgba(255,255,255,.18)';
+  ctx.setLineDash([4,3]);
+  ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(padL,budY); ctx.lineTo(padL+plotW,budY); ctx.stroke();
   ctx.setLineDash([]);
+  // Budget label
+  ctx.fillStyle='rgba(255,255,255,.35)';
+  ctx.textAlign='left';
+  ctx.font='400 9px "Roboto Mono", monospace';
+  ctx.fillText('INITIAL', padL+plotW+4, budY+3);
 
-  // Draw 3 lines
-  function drawSeries(getVal, color, glow){
+  // Plot function
+  function plotLine(getVal, color, glow, fillAlpha){
     const n=history.length;
+
+    // Filled area under line
+    if(fillAlpha>0){
+      const grad=ctx.createLinearGradient(0, padT, 0, padT+plotH);
+      grad.addColorStop(0, color.replace('rgb','rgba').replace(')',`,${fillAlpha})`));
+      grad.addColorStop(1, color.replace('rgb','rgba').replace(')',',0)'));
+      ctx.fillStyle=grad;
+      ctx.beginPath();
+      for(let i=0;i<n;i++){
+        const x=padL+(i/(n-1))*plotW;
+        const y=padT+plotH-((getVal(history[i])-minV)/(maxV-minV))*plotH;
+        if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.lineTo(padL+plotW, padT+plotH);
+      ctx.lineTo(padL, padT+plotH);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // The line
     ctx.strokeStyle=color;
-    ctx.lineWidth=1.5;
+    ctx.lineWidth=1.8;
     ctx.shadowBlur=glow;
     ctx.shadowColor=color;
+    ctx.lineJoin='round';
     ctx.beginPath();
     for(let i=0;i<n;i++){
       const x=padL+(i/(n-1))*plotW;
@@ -1216,29 +1260,47 @@ function drawLine(){
     ctx.stroke();
     ctx.shadowBlur=0;
 
-    // End dot
+    // End point indicator
     const last=history[n-1];
     const ex=padL+plotW;
     const ey=padT+plotH-((getVal(last)-minV)/(maxV-minV))*plotH;
     ctx.fillStyle=color;
-    ctx.shadowBlur=8; ctx.shadowColor=color;
-    ctx.beginPath(); ctx.arc(ex,ey,3,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=10; ctx.shadowColor=color;
+    ctx.beginPath(); ctx.arc(ex,ey,4,0,Math.PI*2); ctx.fill();
     ctx.shadowBlur=0;
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(ex,ey,1.5,0,Math.PI*2); ctx.fill();
+
+    // Value label at end
+    const val=getVal(last);
+    const labelTxt=val>=1000?'$'+(val/1000).toFixed(1)+'K':'$'+val.toFixed(2);
+    ctx.fillStyle=color;
+    ctx.font='500 11px "Roboto Mono", monospace';
+    ctx.textAlign='left';
+    ctx.fillText(labelTxt, ex+8, ey+3);
+
+    return {x:ex, y:ey, val};
   }
 
-  drawSeries(p=>p.main, '#448aff', 4);
-  drawSeries(p=>p.side, '#ff4081', 6);
-  drawSeries(p=>p.total, '#00e676', 8);
+  // Draw Main Pool (blue) — like stock chart with filled area
+  plotLine(p=>p.main, 'rgb(68,138,255)', 6, 0.2);
+  // Draw Side Pot (pink) — accumulating line
+  plotLine(p=>p.side, 'rgb(255,64,129)', 8, 0.15);
 
-  // Update legend with percentages
+  // X axis label
+  ctx.fillStyle='#5a6a88';
+  ctx.font='400 9px "Roboto Mono", monospace';
+  ctx.textAlign='center';
+  ctx.fillText('TRADES', padL+plotW/2, h-4);
+
+  // Legend with change vs initial/start
   const last=history[history.length-1];
-  const totalPct=initialBudget>0?((last.total-initialBudget)/initialBudget*100):0;
-  const mainPct=initialBudget>0?((last.main-initialBudget)/initialBudget*100):0;
-  const sidePct=initialBudget>0?(last.side/initialBudget*100):0;
-  const fmtP=(x)=>(x>=0?'+':'')+x.toFixed(1)+'%';
-  $('legTotal').textContent='TOTAL '+fmtP(totalPct);
-  $('legMain').textContent='MAIN '+fmtP(mainPct);
-  $('legSide').textContent='SIDE POT '+fmtP(sidePct);
+  const mainChange=last.main-initialBudget;
+  const mainPct=(mainChange/initialBudget*100);
+  const sidePct=(last.side/initialBudget*100);
+  const arrow=(x)=>x>=0?'▲':'▼';
+  $('legMain').textContent='MAIN '+(mainChange>=0?'+':'')+'$'+Math.round(mainChange).toLocaleString()+' '+arrow(mainChange)+' '+(mainPct>=0?'+':'')+mainPct.toFixed(1)+'%';
+  $('legSide').textContent='SIDE POT +$'+Math.round(last.side).toLocaleString()+' '+arrow(last.side)+' +'+sidePct.toFixed(1)+'%';
 }
 
 // ═══════ Bar Chart — Molecular Dynamics Style ═══════
